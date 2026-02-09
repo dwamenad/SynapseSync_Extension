@@ -1,0 +1,145 @@
+import type { docs_v1 } from "googleapis";
+
+type InlineStyle = {
+  start: number;
+  end: number;
+  bold?: boolean;
+  italic?: boolean;
+};
+
+type HeadingStyle = {
+  start: number;
+  end: number;
+  namedStyleType: "HEADING_1" | "HEADING_2";
+};
+
+function parseInlineMarkdown(line: string) {
+  let i = 0;
+  let output = "";
+  const styles: InlineStyle[] = [];
+
+  while (i < line.length) {
+    if (line.startsWith("**", i)) {
+      const close = line.indexOf("**", i + 2);
+      if (close !== -1) {
+        const text = line.slice(i + 2, close);
+        const start = output.length;
+        output += text;
+        styles.push({ start, end: output.length, bold: true });
+        i = close + 2;
+        continue;
+      }
+    }
+
+    if (line.startsWith("*", i)) {
+      const close = line.indexOf("*", i + 1);
+      if (close !== -1) {
+        const text = line.slice(i + 1, close);
+        const start = output.length;
+        output += text;
+        styles.push({ start, end: output.length, italic: true });
+        i = close + 1;
+        continue;
+      }
+    }
+
+    output += line[i];
+    i += 1;
+  }
+
+  return { text: output, styles };
+}
+
+export function markdownToDocsRequests(markdown: string): {
+  text: string;
+  requests: docs_v1.Schema$Request[];
+} {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const inlineStyles: InlineStyle[] = [];
+  const headings: HeadingStyle[] = [];
+
+  let offset = 0;
+  const parsedLines = lines.map((rawLine) => {
+    let line = rawLine;
+    let headingType: HeadingStyle["namedStyleType"] | undefined;
+
+    if (line.startsWith("## ")) {
+      headingType = "HEADING_2";
+      line = line.slice(3);
+    } else if (line.startsWith("# ")) {
+      headingType = "HEADING_1";
+      line = line.slice(2);
+    }
+
+    const { text, styles } = parseInlineMarkdown(line);
+    for (const style of styles) {
+      inlineStyles.push({
+        start: offset + style.start,
+        end: offset + style.end,
+        bold: style.bold,
+        italic: style.italic
+      });
+    }
+
+    if (headingType && text.length > 0) {
+      headings.push({
+        start: offset,
+        end: offset + text.length,
+        namedStyleType: headingType
+      });
+    }
+
+    offset += text.length + 1;
+    return text;
+  });
+
+  const text = parsedLines.join("\n");
+  const requests: docs_v1.Schema$Request[] = [];
+
+  for (const heading of headings) {
+    requests.push({
+      updateParagraphStyle: {
+        range: {
+          startIndex: 1 + heading.start,
+          endIndex: 1 + heading.end
+        },
+        paragraphStyle: {
+          namedStyleType: heading.namedStyleType
+        },
+        fields: "namedStyleType"
+      }
+    });
+  }
+
+  for (const style of inlineStyles) {
+    requests.push({
+      updateTextStyle: {
+        range: {
+          startIndex: 1 + style.start,
+          endIndex: 1 + style.end
+        },
+        textStyle: {
+          bold: style.bold,
+          italic: style.italic
+        },
+        fields: [style.bold ? "bold" : "", style.italic ? "italic" : ""]
+          .filter(Boolean)
+          .join(",")
+      }
+    });
+  }
+
+  return { text, requests };
+}
+
+export function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
