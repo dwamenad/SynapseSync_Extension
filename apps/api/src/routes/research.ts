@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../config/env";
+import { createInMemoryRateLimiter } from "../middleware/rateLimit";
 import { requireCsrf } from "../middleware/csrf";
 import { listPaperEntriesForDoc } from "../services/paperEntryService";
 import { checkOverlapForPaper } from "../services/overlapService";
@@ -13,6 +14,11 @@ import { synthesizeAndAppendForUser } from "../services/synthesisService";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+const researchPostLimiter = createInMemoryRateLimiter({
+  windowMs: env.RESEARCH_RATE_LIMIT_WINDOW_MS,
+  max: env.RESEARCH_RATE_LIMIT_MAX,
+  message: "Research request limit reached. Please retry shortly."
+});
 
 const PaperDataSchema = z.object({
   title: z.string().min(1),
@@ -48,7 +54,7 @@ const SynthesizeBodySchema = z.object({
   mode: z.enum(["thematic", "chronological"])
 });
 
-router.post("/overlap-check", requireCsrf, async (req, res) => {
+router.post("/overlap-check", researchPostLimiter, requireCsrf, async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -100,7 +106,7 @@ router.get("/papers", async (req, res) => {
   });
 });
 
-router.post("/evidence-matrix", requireCsrf, async (req, res) => {
+router.post("/evidence-matrix", researchPostLimiter, requireCsrf, async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -137,7 +143,7 @@ router.get("/evidence-matrix", async (req, res) => {
   return res.status(200).json(result);
 });
 
-router.post("/synthesize", requireCsrf, async (req, res) => {
+router.post("/synthesize", researchPostLimiter, requireCsrf, async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -173,4 +179,3 @@ router.post("/synthesize", requireCsrf, async (req, res) => {
 });
 
 export default router;
-
