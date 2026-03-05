@@ -89,6 +89,12 @@ var disciplineModeToggle = requireElement("#disciplineMode");
 var overlapInsightsEl = requireElement("#overlapInsights");
 var statusEl = requireElement("#status");
 var api = new SynapseSyncApi(DEFAULT_API_BASE);
+function getErrorMessage(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error || "Unknown error");
+}
 function setStatus(message) {
   statusEl.textContent = message;
 }
@@ -199,9 +205,10 @@ async function scrapeFromActiveResearchTab() {
     try {
       await ensureContentScript(tab.id);
       response = await requestScrape(tab.id);
-    } catch {
+    } catch (error) {
+      const detail = getErrorMessage(error);
       throw new Error(
-        "Could not reach the scraper on this page. Reload the tab and try again."
+        `Could not reach the scraper on this page. Reload the tab and ensure extension site access is allowed for this domain (Extensions > SynapseSync_Extension > Site access). Details: ${detail}`
       );
     }
   }

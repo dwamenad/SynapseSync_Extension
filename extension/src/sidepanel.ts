@@ -25,6 +25,13 @@ const statusEl = requireElement<HTMLElement>("#status");
 
 const api = new SynapseSyncApi(DEFAULT_API_BASE);
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error || "Unknown error");
+}
+
 function setStatus(message: string) {
   statusEl.textContent = message;
 }
@@ -151,9 +158,11 @@ async function scrapeFromActiveResearchTab(): Promise<PaperData> {
     try {
       await ensureContentScript(tab.id);
       response = await requestScrape(tab.id);
-    } catch {
+    } catch (error) {
+      const detail = getErrorMessage(error);
       throw new Error(
-        "Could not reach the scraper on this page. Reload the tab and try again."
+        "Could not reach the scraper on this page. Reload the tab and ensure extension site access is allowed for this domain (Extensions > SynapseSync_Extension > Site access). " +
+          `Details: ${detail}`
       );
     }
   }

@@ -5,9 +5,8 @@
   "description": "Scrape PubMed, arXiv, bioRxiv, and journal pages, then append AI summaries to Google Docs.",
   "permissions": ["activeTab", "storage", "scripting", "sidePanel", "tabs"],
   "host_permissions": [
-    "https://pubmed.ncbi.nlm.nih.gov/*",
-    "https://arxiv.org/*",
-    "https://www.biorxiv.org/*",
+    "https://*/*",
+    "http://*/*",
     "http://localhost:4000/*"
   ],
   "action": {
@@ -30,7 +29,9 @@
       "matches": [
         "https://pubmed.ncbi.nlm.nih.gov/*",
         "https://arxiv.org/*",
-        "https://www.biorxiv.org/*"
+        "https://www.biorxiv.org/*",
+        "https://*/*",
+        "http://*/*"
       ],
       "js": ["dist/content.js"],
       "run_at": "document_idle"
