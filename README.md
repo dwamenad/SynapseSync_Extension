@@ -306,6 +306,13 @@ SynapseSync is a developer project scaffold and not medical advice software. Alw
 
 ---
 
+## Acknowledgements
+
+- Chrome extension implementation patterns were informed by [GoogleChrome/chrome-extensions-samples](https://github.com/GoogleChrome/chrome-extensions-samples) (Manifest V3 side panel and messaging recipes).
+- README organization style was adapted to match the high-signal structure used in [llmsresearch/paperbanana](https://github.com/llmsresearch/paperbanana).
+
+---
+
 ## License
 
 MIT (or your preferred license).
