@@ -41,6 +41,7 @@ Create `.env` from `.env.example`:
 - `APP_BASE_URL`
 - `MOCK_AUTH` (optional for local test mode)
 - `MOCK_GOOGLE_APIS` (optional for local test mode)
+- `NEXT_PUBLIC_GOOGLE_API_KEY` (optional, enables Google Drive Picker UI)
 
 ## Google Cloud Setup
 

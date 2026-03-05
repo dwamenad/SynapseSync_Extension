@@ -29,6 +29,7 @@ type FolderOption = {
 };
 
 export default function DashboardClient() {
+  const pickerApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "";
   const [user, setUser] = useState<User | null>(null);
   const [message, setMessage] = useState("");
   const [folderId, setFolderId] = useState("");
@@ -41,6 +42,7 @@ export default function DashboardClient() {
   const [folderQuery, setFolderQuery] = useState("");
   const [folderOptions, setFolderOptions] = useState<FolderOption[]>([]);
   const [folderLoading, setFolderLoading] = useState(false);
+  const [pickerLoading, setPickerLoading] = useState(false);
 
   async function loadMe() {
     const res = await fetch("/api/me", { credentials: "include" });
@@ -159,6 +161,83 @@ export default function DashboardClient() {
     await searchFolders("");
   }
 
+  async function loadGooglePickerScripts() {
+    if (window.gapi?.load && window.google?.picker) {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector<HTMLScriptElement>(
+        "script[data-google-picker='true']"
+      );
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://apis.google.com/js/api.js";
+      script.async = true;
+      script.dataset.googlePicker = "true";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Failed to load Google Picker script"));
+      document.body.appendChild(script);
+    });
+
+    await new Promise<void>((resolve) => {
+      window.gapi.load("picker", () => resolve());
+    });
+  }
+
+  async function openGooglePicker() {
+    if (!pickerApiKey) {
+      setError("Missing NEXT_PUBLIC_GOOGLE_API_KEY for Google Picker.");
+      return;
+    }
+
+    setPickerLoading(true);
+    setError(null);
+    try {
+      const tokenRes = await fetch("/api/google/pickerToken", {
+        credentials: "include"
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.accessToken) {
+        throw new Error(tokenData.error || "Unable to load Google Picker token");
+      }
+
+      await loadGooglePickerScripts();
+
+      const view = new window.google.picker.DocsView(
+        window.google.picker.ViewId.FOLDERS
+      );
+      view.setIncludeFolders(true);
+      view.setSelectFolderEnabled(true);
+
+      const picker = new window.google.picker.PickerBuilder()
+        .setDeveloperKey(pickerApiKey)
+        .setOAuthToken(tokenData.accessToken as string)
+        .addView(view)
+        .setCallback((data: any) => {
+          if (data.action !== window.google.picker.Action.PICKED) {
+            return;
+          }
+
+          const selected = data.docs?.[0];
+          if (selected?.id) {
+            setFolderId(selected.id);
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google Picker failed");
+    } finally {
+      setPickerLoading(false);
+    }
+  }
+
   return (
     <div className="grid two">
       <section className="card">
@@ -202,6 +281,19 @@ export default function DashboardClient() {
                 disabled={!user}
               >
                 Browse
+              </button>
+              <button
+                className="button secondary"
+                type="button"
+                disabled={!user || pickerLoading || !pickerApiKey}
+                onClick={() => void openGooglePicker()}
+                title={
+                  pickerApiKey
+                    ? "Use Google Drive Picker"
+                    : "Set NEXT_PUBLIC_GOOGLE_API_KEY to enable"
+                }
+              >
+                {pickerLoading ? "Loading..." : "Google Picker"}
               </button>
             </div>
           </label>
