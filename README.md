@@ -292,6 +292,31 @@ npm run build:extension
 
 ---
 
+## Connection Phase Rollout Checklist
+
+Use this checklist when promoting Connection Phase v1 to staging/production:
+
+1. Deploy backend code and apply migrations:
+   - `npx prisma migrate deploy`
+2. Ensure Google APIs are enabled:
+   - Google Drive API
+   - Google Docs API
+   - Google Sheets API
+3. Verify OAuth consent scopes include:
+   - `https://www.googleapis.com/auth/drive.file`
+   - `https://www.googleapis.com/auth/documents`
+   - `https://www.googleapis.com/auth/spreadsheets`
+4. Force re-consent for existing users (Sheets scope is new).
+5. Rebuild and reload extension:
+   - `npm run build:extension`
+   - refresh unpacked extension in `chrome://extensions`
+6. Validate end-to-end:
+   - overlap check response in side panel
+   - evidence matrix generation in Sheets
+   - synthesis append to selected doc
+
+---
+
 ## Security & CORS Notes
 
 - Mutating routes require CSRF token validation
