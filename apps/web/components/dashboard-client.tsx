@@ -40,6 +40,7 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(false);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [csrfToken, setCsrfToken] = useState<string>("");
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
@@ -65,6 +66,9 @@ export default function DashboardClient() {
     }
     const data = await res.json();
     setRecentDocs(data.docs || []);
+    if (!selectedDocId && data.docs?.length) {
+      setSelectedDocId(data.docs[0].id);
+    }
   }
 
   useEffect(() => {
@@ -179,6 +183,8 @@ export default function DashboardClient() {
       )
     );
   }
+
+  const selectedDoc = recentDocs.find((doc) => doc.id === selectedDocId) || null;
 
   async function onSignOut() {
     const token = csrfToken || (await loadCsrf());
@@ -389,7 +395,14 @@ export default function DashboardClient() {
         <ul className="doc-list">
           {recentDocs.length === 0 ? <li className="meta">No docs yet.</li> : null}
           {recentDocs.map((doc) => (
-            <li key={doc.id}>
+            <li
+              key={doc.id}
+              style={{
+                outline: selectedDocId === doc.id ? "2px solid #8cb2ff" : "none",
+                cursor: "pointer"
+              }}
+              onClick={() => setSelectedDocId(doc.id)}
+            >
               <div style={{ fontWeight: 600 }}>{doc.title}</div>
               <a href={doc.documentUrl} target="_blank" rel="noreferrer">
                 Open doc
@@ -397,6 +410,29 @@ export default function DashboardClient() {
             </li>
           ))}
         </ul>
+
+        {selectedDoc ? (
+          <div style={{ marginTop: "0.8rem", borderTop: "1px solid var(--border)", paddingTop: "0.8rem" }}>
+            <h4 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Selected Doc</h4>
+            <p className="meta" style={{ marginBottom: "0.5rem" }}>
+              {selectedDoc.title}
+            </p>
+            <div className="row">
+              <a className="button secondary" href={selectedDoc.documentUrl} target="_blank" rel="noreferrer">
+                Open
+              </a>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(selectedDoc.documentUrl);
+                }}
+              >
+                Copy Link
+              </button>
+            </div>
+          </div>
+        ) : null}
       </aside>
 
       {folderPickerOpen ? (
