@@ -12,24 +12,28 @@ import { generateNeuroSummary } from "../services/neuroSummary";
 import { savePaperEntryForAppend } from "../services/paperEntryService";
 
 const router = Router();
+const MAX_TITLE_CHARS = 500;
+const MAX_BODY_CHARS = 20_000;
+const MAX_URL_CHARS = 2_000;
+const MAX_CITATION_CHARS = 30_000;
 
 const ChatBodySchema = z.object({
-  message: z.string().min(1),
+  message: z.string().min(1).max(12_000),
   folderId: z.string().optional()
 });
 const PaperDataSchema = z.object({
-  title: z.string().min(1),
-  abstract: z.string().min(1),
-  url: z.string().url(),
-  methods: z.string().optional(),
-  figures: z.string().optional(),
-  discussion: z.string().optional(),
-  conclusions: z.string().optional(),
-  futureDirections: z.string().optional(),
-  citations: z.string().optional(),
+  title: z.string().min(1).max(MAX_TITLE_CHARS),
+  abstract: z.string().min(1).max(MAX_BODY_CHARS),
+  url: z.string().url().max(MAX_URL_CHARS),
+  methods: z.string().max(MAX_BODY_CHARS).optional(),
+  figures: z.string().max(MAX_BODY_CHARS).optional(),
+  discussion: z.string().max(MAX_BODY_CHARS).optional(),
+  conclusions: z.string().max(MAX_BODY_CHARS).optional(),
+  futureDirections: z.string().max(MAX_BODY_CHARS).optional(),
+  citations: z.string().max(MAX_CITATION_CHARS).optional(),
   sourceType: z.enum(["pubmed", "arxiv", "biorxiv", "journal"]).optional(),
-  authors: z.array(z.string()).optional(),
-  doi: z.string().optional()
+  authors: z.array(z.string().max(300)).max(120).optional(),
+  doi: z.string().max(300).optional()
 });
 const ExtensionAppendBodySchema = z.object({
   paperData: PaperDataSchema,

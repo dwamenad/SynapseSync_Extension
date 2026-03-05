@@ -14,6 +14,10 @@ import { synthesizeAndAppendForUser } from "../services/synthesisService";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+const MAX_TITLE_CHARS = 500;
+const MAX_BODY_CHARS = 20_000;
+const MAX_URL_CHARS = 2_000;
+const MAX_CITATION_CHARS = 30_000;
 const researchPostLimiter = createInMemoryRateLimiter({
   windowMs: env.RESEARCH_RATE_LIMIT_WINDOW_MS,
   max: env.RESEARCH_RATE_LIMIT_MAX,
@@ -21,18 +25,18 @@ const researchPostLimiter = createInMemoryRateLimiter({
 });
 
 const PaperDataSchema = z.object({
-  title: z.string().min(1),
-  abstract: z.string().min(1),
-  url: z.string().url(),
-  methods: z.string().optional(),
-  figures: z.string().optional(),
-  discussion: z.string().optional(),
-  conclusions: z.string().optional(),
-  futureDirections: z.string().optional(),
-  citations: z.string().optional(),
+  title: z.string().min(1).max(MAX_TITLE_CHARS),
+  abstract: z.string().min(1).max(MAX_BODY_CHARS),
+  url: z.string().url().max(MAX_URL_CHARS),
+  methods: z.string().max(MAX_BODY_CHARS).optional(),
+  figures: z.string().max(MAX_BODY_CHARS).optional(),
+  discussion: z.string().max(MAX_BODY_CHARS).optional(),
+  conclusions: z.string().max(MAX_BODY_CHARS).optional(),
+  futureDirections: z.string().max(MAX_BODY_CHARS).optional(),
+  citations: z.string().max(MAX_CITATION_CHARS).optional(),
   sourceType: z.enum(["pubmed", "arxiv", "biorxiv", "journal"]).optional(),
-  authors: z.array(z.string()).optional(),
-  doi: z.string().optional()
+  authors: z.array(z.string().max(300)).max(120).optional(),
+  doi: z.string().max(300).optional()
 });
 
 const TargetDocQuerySchema = z.object({
