@@ -1,0 +1,50 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://api:4000
+      APP_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_GOOGLE_API_KEY: ${NEXT_PUBLIC_GOOGLE_API_KEY:-}
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      APP_BASE_URL: http://localhost:3000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
+      SESSION_COOKIE_SECRET: ${SESSION_COOKIE_SECRET}
+      DATABASE_URL: ${DATABASE_URL:-file:./dev.db}
+      MOCK_AUTH: ${MOCK_AUTH:-false}
+      MOCK_GOOGLE_APIS: ${MOCK_GOOGLE_APIS:-false}
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gdocchat
+      POSTGRES_USER: gdocchat
+      POSTGRES_PASSWORD: gdocchat
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
