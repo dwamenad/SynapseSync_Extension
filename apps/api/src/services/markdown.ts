@@ -142,7 +142,28 @@ export function markdownToDocsRequests(markdown: string): {
   const lists: ListStyle[] = [];
 
   let offset = 0;
-  const parsedLines = lines.map((rawLine) => {
+  let inCodeBlock = false;
+  const parsedLines: string[] = [];
+
+  for (const rawLine of lines) {
+    if (rawLine.trim().startsWith("```")) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+
+    if (inCodeBlock) {
+      parsedLines.push(rawLine);
+      if (rawLine.length > 0) {
+        inlineStyles.push({
+          start: offset,
+          end: offset + rawLine.length,
+          code: true
+        });
+      }
+      offset += rawLine.length + 1;
+      continue;
+    }
+
     let line = rawLine;
     let headingType: HeadingStyle["namedStyleType"] | undefined;
     let listBulletPreset: ListStyle["bulletPreset"] | undefined;
@@ -190,8 +211,8 @@ export function markdownToDocsRequests(markdown: string): {
     }
 
     offset += text.length + 1;
-    return text;
-  });
+    parsedLines.push(text);
+  }
 
   const text = parsedLines.join("\n");
   const requests: docs_v1.Schema$Request[] = [];
