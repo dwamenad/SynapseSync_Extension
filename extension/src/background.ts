@@ -1,16 +1,21 @@
-const PUBMED_ORIGIN = "https://pubmed.ncbi.nlm.nih.gov";
-
-async function updateSidePanelForTab(tabId: number, url?: string) {
+function isSupportedTabUrl(url?: string) {
   if (!url) {
-    await chrome.sidePanel.setOptions({ tabId, enabled: false });
-    return;
+    return false;
   }
 
-  const origin = new URL(url).origin;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+async function updateSidePanelForTab(tabId: number, url?: string) {
   await chrome.sidePanel.setOptions({
     tabId,
     path: "sidepanel.html",
-    enabled: origin === PUBMED_ORIGIN
+    enabled: isSupportedTabUrl(url)
   });
 }
 

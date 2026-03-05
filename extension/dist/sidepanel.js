@@ -109,26 +109,54 @@ ${error instanceof Error ? error.message : "Unknown error"}`
     );
   }
 }
-async function scrapeFromActivePubMedTab() {
+function isSupportedResearchUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function requestScrape(tabId) {
+  return await chrome.tabs.sendMessage(tabId, {
+    type: "SYNAPSE_SYNC_GET_PAPER_DATA"
+  });
+}
+async function ensureContentScript(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["dist/content.js"]
+  });
+}
+async function scrapeFromActiveResearchTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) {
     throw new Error("No active browser tab found.");
   }
-  if (!tab.url?.startsWith("https://pubmed.ncbi.nlm.nih.gov/")) {
-    throw new Error("Open a PubMed abstract tab before running Summarize & Append.");
+  const tabUrl = tab.url || "";
+  if (!isSupportedResearchUrl(tabUrl)) {
+    throw new Error(
+      "Open a PubMed, arXiv, bioRxiv, or journal article page before running Summarize & Append."
+    );
   }
   let response;
   try {
-    response = await chrome.tabs.sendMessage(tab.id, {
-      type: "SYNAPSE_SYNC_GET_PAPER_DATA"
-    });
+    response = await requestScrape(tab.id);
   } catch {
-    throw new Error(
-      "Could not reach the PubMed scraper. Reload the tab and try again."
-    );
+    try {
+      await ensureContentScript(tab.id);
+      response = await requestScrape(tab.id);
+    } catch {
+      throw new Error(
+        "Could not reach the scraper on this page. Reload the tab and try again."
+      );
+    }
   }
   if (!response?.ok || !response.paperData) {
-    throw new Error(response?.error || "Could not scrape PubMed data from current tab.");
+    throw new Error(response?.error || "Could not scrape paper data from current tab.");
   }
   return response.paperData;
 }
@@ -140,8 +168,8 @@ async function onSummarizeAppend() {
   }
   setWorking(true);
   try {
-    setStatus("Scraping PubMed page...");
-    const paperData = await scrapeFromActivePubMedTab();
+    setStatus("Scraping research page...");
+    const paperData = await scrapeFromActiveResearchTab();
     setStatus("Generating neuroscience summary and appending to doc...");
     const result = await api.summarizeAndAppend({
       paperData,

@@ -1,15 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "SynapseSync",
+  "name": "SynapseSync_Extension",
   "version": "0.1.0",
-  "description": "Scrape PubMed abstracts and append AI summaries to Google Docs.",
+  "description": "Scrape PubMed, arXiv, bioRxiv, and journal pages, then append AI summaries to Google Docs.",
   "permissions": ["activeTab", "storage", "scripting", "sidePanel", "tabs"],
   "host_permissions": [
     "https://pubmed.ncbi.nlm.nih.gov/*",
+    "https://arxiv.org/*",
+    "https://www.biorxiv.org/*",
     "http://localhost:4000/*"
   ],
   "action": {
-    "default_title": "SynapseSync"
+    "default_title": "SynapseSync_Extension"
   },
   "background": {
     "service_worker": "dist/background.js",
@@ -25,7 +27,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://pubmed.ncbi.nlm.nih.gov/*"],
+      "matches": [
+        "https://pubmed.ncbi.nlm.nih.gov/*",
+        "https://arxiv.org/*",
+        "https://www.biorxiv.org/*"
+      ],
       "js": ["dist/content.js"],
       "run_at": "document_idle"
     }

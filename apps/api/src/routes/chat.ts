@@ -20,6 +20,13 @@ const PaperDataSchema = z.object({
   title: z.string().min(1),
   abstract: z.string().min(1),
   url: z.string().url(),
+  methods: z.string().optional(),
+  figures: z.string().optional(),
+  discussion: z.string().optional(),
+  conclusions: z.string().optional(),
+  futureDirections: z.string().optional(),
+  citations: z.string().optional(),
+  sourceType: z.enum(["pubmed", "arxiv", "biorxiv", "journal"]).optional(),
   authors: z.array(z.string()).optional(),
   doi: z.string().optional()
 });

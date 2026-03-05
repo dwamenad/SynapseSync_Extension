@@ -1,5 +1,13 @@
 import type { PaperData } from "./types";
 
+declare global {
+  interface Window {
+    __synapseSyncContentListenerRegistered?: boolean;
+  }
+}
+
+type SourceType = NonNullable<PaperData["sourceType"]>;
+
 type ScrapeRequestMessage = {
   type: "SYNAPSE_SYNC_GET_PAPER_DATA";
 };
@@ -10,92 +18,424 @@ type ScrapeResponseMessage = {
   error?: string;
 };
 
+const HEADING_SELECTOR = "h1,h2,h3,h4,h5,h6";
+const DOI_REGEX = /10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i;
+const MAX_SECTION_CHARS = 8000;
+const MAX_CITATIONS = 30;
+
 function compactText(input: string | null | undefined) {
   return (input || "").replace(/\s+/g, " ").trim();
 }
 
-function extractAbstractText() {
-  const abstractContainer = document.querySelector<HTMLElement>(".abstract-content");
-  if (!abstractContainer) {
-    return "";
+function trimSection(value: string | undefined) {
+  if (!value) {
+    return undefined;
   }
-
-  const paragraphs = Array.from(
-    abstractContainer.querySelectorAll<HTMLElement>("p, .abstract-content.selected")
-  )
-    .map((el) => compactText(el.textContent))
-    .filter(Boolean);
-
-  if (paragraphs.length > 0) {
-    return paragraphs.join("\n\n");
+  const normalized = value.trim();
+  if (!normalized) {
+    return undefined;
   }
-
-  return compactText(abstractContainer.textContent);
+  if (normalized.length <= MAX_SECTION_CHARS) {
+    return normalized;
+  }
+  return `${normalized.slice(0, MAX_SECTION_CHARS)}...`;
 }
 
-function extractAuthors() {
-  return Array.from(document.querySelectorAll<HTMLElement>(".authors-list .full-name"))
-    .map((el) => compactText(el.textContent))
+function textFromElement(element: Element | null | undefined) {
+  if (!element) {
+    return "";
+  }
+  const htmlElement = element as HTMLElement;
+  return compactText(htmlElement.innerText || element.textContent);
+}
+
+function firstText(selectors: string[]) {
+  for (const selector of selectors) {
+    const value = textFromElement(document.querySelector(selector));
+    if (value) {
+      return value;
+    }
+  }
+  return "";
+}
+
+function allText(selectors: string[]) {
+  const values: string[] = [];
+  for (const selector of selectors) {
+    const matches = Array.from(document.querySelectorAll(selector))
+      .map((node) => textFromElement(node))
+      .filter(Boolean);
+    if (matches.length) {
+      values.push(...matches);
+    }
+  }
+  return values.join("\n\n");
+}
+
+function uniqueStrings(values: Array<string | undefined | null>) {
+  return Array.from(new Set(values.map((v) => compactText(v)).filter(Boolean)));
+}
+
+function splitDelimitedValues(value: string) {
+  return value
+    .split(/;|\sand\s/gi)
+    .map((item) => compactText(item))
     .filter(Boolean);
+}
+
+function extractMetaValues(names: string[]) {
+  const values: string[] = [];
+  for (const name of names) {
+    const metaByName = Array.from(
+      document.querySelectorAll<HTMLMetaElement>(`meta[name="${name}"]`)
+    );
+    const metaByProperty = Array.from(
+      document.querySelectorAll<HTMLMetaElement>(`meta[property="${name}"]`)
+    );
+    for (const meta of [...metaByName, ...metaByProperty]) {
+      const value = compactText(meta.content);
+      if (value) {
+        values.push(value);
+      }
+    }
+  }
+  return values;
+}
+
+function extractSectionFromHeading(pattern: RegExp) {
+  const headings = Array.from(document.querySelectorAll(HEADING_SELECTOR));
+  for (const heading of headings) {
+    const headingText = compactText(heading.textContent).toLowerCase();
+    if (!pattern.test(headingText)) {
+      continue;
+    }
+
+    const content: string[] = [];
+    let cursor = heading.nextElementSibling;
+    while (cursor) {
+      if (cursor.matches(HEADING_SELECTOR)) {
+        break;
+      }
+      const value = textFromElement(cursor);
+      if (value) {
+        content.push(value);
+      }
+      cursor = cursor.nextElementSibling;
+    }
+
+    if (content.length > 0) {
+      return content.join("\n\n");
+    }
+
+    const sectionContainer = heading.closest("section,article,div");
+    if (sectionContainer) {
+      const sectionText = textFromElement(sectionContainer);
+      if (sectionText) {
+        return sectionText;
+      }
+    }
+  }
+  return undefined;
+}
+
+function extractSection(options: { selectors: string[]; headingPattern: RegExp }) {
+  const bySelector = trimSection(allText(options.selectors));
+  if (bySelector) {
+    return bySelector;
+  }
+  return trimSection(extractSectionFromHeading(options.headingPattern));
+}
+
+function detectSourceType(): SourceType {
+  const host = window.location.hostname.toLowerCase();
+  if (host.includes("pubmed.ncbi.nlm.nih.gov")) {
+    return "pubmed";
+  }
+  if (host.includes("arxiv.org")) {
+    return "arxiv";
+  }
+  if (host.includes("biorxiv.org")) {
+    return "biorxiv";
+  }
+  return "journal";
+}
+
+function extractTitle(sourceType: SourceType) {
+  if (sourceType === "pubmed") {
+    return (
+      firstText(["h1.heading-title"]) ||
+      extractMetaValues(["citation_title", "og:title"])[0] ||
+      firstText(["h1"])
+    );
+  }
+  if (sourceType === "arxiv") {
+    const raw =
+      firstText(["h1.title.mathjax", "h1.title"]) ||
+      extractMetaValues(["citation_title", "og:title"])[0] ||
+      firstText(["h1"]);
+    return raw.replace(/^title:\s*/i, "").trim();
+  }
+  if (sourceType === "biorxiv") {
+    return (
+      firstText(["h1.highwire-cite-title", "h1#page-title"]) ||
+      extractMetaValues(["citation_title", "og:title"])[0] ||
+      firstText(["h1"])
+    );
+  }
+  return (
+    extractMetaValues(["citation_title", "og:title", "dc.title"])[0] ||
+    firstText(["main h1", "article h1", "h1"])
+  );
+}
+
+function extractAbstract(sourceType: SourceType) {
+  if (sourceType === "pubmed") {
+    const abstractContent = firstText([
+      ".abstract-content.selected",
+      ".abstract-content",
+      "[id*='abstract']"
+    ]);
+    if (abstractContent) {
+      return abstractContent;
+    }
+  }
+
+  if (sourceType === "arxiv") {
+    const raw =
+      firstText(["blockquote.abstract.mathjax", "blockquote.abstract"]) ||
+      extractMetaValues(["description", "og:description"])[0] ||
+      "";
+    const cleaned = raw.replace(/^abstract:\s*/i, "").trim();
+    if (cleaned) {
+      return cleaned;
+    }
+  }
+
+  if (sourceType === "biorxiv") {
+    const abstractContent = firstText([
+      "section.abstract",
+      "div.section.abstract",
+      ".highwire-markup.abstract",
+      "[id*='abstract']"
+    ]);
+    if (abstractContent) {
+      return abstractContent;
+    }
+  }
+
+  const genericAbstract =
+    firstText([
+      "[data-test*='abstract']",
+      "[class*='abstract'] p",
+      "[class*='abstract']",
+      "section#abstract",
+      "section.abstract",
+      "article [id*='abstract']",
+      "article section"
+    ]) ||
+    trimSection(extractSectionFromHeading(/^(abstract|summary)$/i)) ||
+    extractMetaValues(["description", "og:description", "dc.description"])[0] ||
+    "";
+
+  if (genericAbstract) {
+    return genericAbstract.replace(/^abstract[:\s-]*/i, "").trim();
+  }
+
+  const fallbackParagraph = Array.from(document.querySelectorAll("article p, main p, p"))
+    .map((node) => textFromElement(node))
+    .filter((value) => value.length > 70)
+    .slice(0, 3)
+    .join("\n\n");
+
+  return fallbackParagraph;
+}
+
+function extractAuthors(sourceType: SourceType) {
+  const sourceSelectors: Record<SourceType, string[]> = {
+    pubmed: [".authors-list .full-name", "[data-author-type='author'] .full-name"],
+    arxiv: [".authors a", ".authors"],
+    biorxiv: [".highwire-citation-authors .nlm-given-names", ".highwire-citation-authors"],
+    journal: ["[class*='author'] [class*='name']", "[rel='author']", "[class*='authors'] a"]
+  };
+
+  const fromMeta = extractMetaValues([
+    "citation_author",
+    "dc.creator",
+    "dc.Creator",
+    "author"
+  ]).flatMap(splitDelimitedValues);
+
+  const fromSelectors = allText(sourceSelectors[sourceType])
+    .split(/\n+/)
+    .map((value) => compactText(value))
+    .flatMap(splitDelimitedValues);
+
+  const unique = uniqueStrings([...fromMeta, ...fromSelectors]);
+  return unique.length ? unique : undefined;
 }
 
 function extractDoi() {
-  const doiAnchor =
-    document.querySelector<HTMLAnchorElement>("a[href*='doi.org']") ||
-    document.querySelector<HTMLAnchorElement>("#full-view-identifiers a.link-item");
-
-  const href = doiAnchor?.href;
-  if (!href) {
-    return undefined;
+  const metaCandidates = extractMetaValues([
+    "citation_doi",
+    "dc.identifier",
+    "dc.Identifier"
+  ]);
+  for (const candidate of metaCandidates) {
+    const match = candidate.match(DOI_REGEX);
+    if (match?.[0]) {
+      return match[0];
+    }
   }
 
-  const match = href.match(/doi\.org\/(.+)$/i);
-  return match?.[1] || compactText(doiAnchor.textContent) || undefined;
+  const doiLink = document.querySelector<HTMLAnchorElement>(
+    "a[href*='doi.org'], a[href*='dx.doi.org']"
+  );
+  const doiText = compactText(doiLink?.href || doiLink?.textContent);
+  const linkMatch = doiText.match(DOI_REGEX);
+  if (linkMatch?.[0]) {
+    return linkMatch[0];
+  }
+
+  const pageMatch = compactText(document.body.innerText).match(DOI_REGEX);
+  return pageMatch?.[0];
 }
 
-function scrapePubMedPage(): PaperData {
-  const title = compactText(
-    document.querySelector<HTMLElement>("h1.heading-title")?.textContent
+function extractFigures() {
+  const captions = Array.from(
+    document.querySelectorAll(
+      "figure figcaption, .fig-caption, [class*='figure'] figcaption, [class*='figcaption']"
+    )
+  )
+    .map((node) => textFromElement(node))
+    .filter(Boolean)
+    .slice(0, 12);
+
+  if (captions.length > 0) {
+    return trimSection(captions.join("\n\n"));
+  }
+
+  return trimSection(extractSectionFromHeading(/^(figures?|results and figures?)$/i));
+}
+
+function extractCitations() {
+  const citations = new Set<string>();
+
+  const metaCitations = extractMetaValues(["citation_reference"]);
+  for (const citation of metaCitations) {
+    if (citation) {
+      citations.add(citation);
+    }
+  }
+
+  const referenceNodes = Array.from(
+    document.querySelectorAll(
+      "[id*='reference'] li, .references li, .ref-list li, ol.citations li, .citation-list li"
+    )
   );
-  const abstract = extractAbstractText();
-  const authors = extractAuthors();
-  const doi = extractDoi();
+  for (const node of referenceNodes) {
+    const value = textFromElement(node);
+    if (value) {
+      citations.add(value);
+    }
+    if (citations.size >= MAX_CITATIONS) {
+      break;
+    }
+  }
+
+  const list = Array.from(citations).slice(0, MAX_CITATIONS);
+  return list.length ? trimSection(list.join("\n")) : undefined;
+}
+
+function scrapeResearchPage(): PaperData {
+  const sourceType = detectSourceType();
+  const title = extractTitle(sourceType);
 
   if (!title) {
-    throw new Error("Could not find PubMed article title.");
+    throw new Error("Could not find article title on this page.");
   }
+
+  const methods = extractSection({
+    selectors: [
+      "[class*='method']",
+      "[id*='method']",
+      "section.methods",
+      "section#methods",
+      "section.materials-and-methods"
+    ],
+    headingPattern: /^(methods?|materials and methods|methodology|experimental procedures?)$/i
+  });
+
+  const discussion = extractSection({
+    selectors: ["[class*='discussion']", "[id*='discussion']", "section.discussion"],
+    headingPattern: /^discussion$/i
+  });
+
+  const conclusions = extractSection({
+    selectors: ["[class*='conclusion']", "[id*='conclusion']", "section.conclusion"],
+    headingPattern: /^(conclusions?|concluding remarks?|summary and conclusions?)$/i
+  });
+
+  const futureDirections = extractSection({
+    selectors: [
+      "[class*='future']",
+      "[id*='future']",
+      "section.future-directions",
+      "section.future-work"
+    ],
+    headingPattern: /^(future directions?|future work|next steps|future research)$/i
+  });
+
+  const abstract =
+    trimSection(extractAbstract(sourceType)) ||
+    trimSection([methods, discussion, conclusions].filter(Boolean).join("\n\n"));
   if (!abstract) {
-    throw new Error("Could not find PubMed abstract content.");
+    throw new Error("Could not extract abstract or summary text from this page.");
   }
 
   return {
     title,
     abstract,
-    authors,
-    doi,
+    methods,
+    figures: extractFigures(),
+    discussion,
+    conclusions,
+    futureDirections,
+    citations: extractCitations(),
+    authors: extractAuthors(sourceType),
+    doi: extractDoi(),
+    sourceType,
     url: window.location.href
   };
 }
 
-chrome.runtime.onMessage.addListener(
-  (
-    message: ScrapeRequestMessage,
-    _sender,
-    sendResponse: (response: ScrapeResponseMessage) => void
-  ) => {
-    if (message.type !== "SYNAPSE_SYNC_GET_PAPER_DATA") {
+function registerScrapeMessageHandler() {
+  if (window.__synapseSyncContentListenerRegistered) {
+    return;
+  }
+  window.__synapseSyncContentListenerRegistered = true;
+
+  chrome.runtime.onMessage.addListener(
+    (
+      message: ScrapeRequestMessage,
+      _sender,
+      sendResponse: (response: ScrapeResponseMessage) => void
+    ) => {
+      if (message.type !== "SYNAPSE_SYNC_GET_PAPER_DATA") {
+        return false;
+      }
+
+      try {
+        sendResponse({ ok: true, paperData: scrapeResearchPage() });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : "Page scrape failed"
+        });
+      }
+
       return false;
     }
+  );
+}
 
-    try {
-      sendResponse({ ok: true, paperData: scrapePubMedPage() });
-    } catch (error) {
-      sendResponse({
-        ok: false,
-        error: error instanceof Error ? error.message : "PubMed scrape failed"
-      });
-    }
-
-    return false;
-  }
-);
+registerScrapeMessageHandler();

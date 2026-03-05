@@ -1,8 +1,15 @@
 export type PaperData = {
   title: string;
   abstract: string;
-  authors: string[];
+  methods?: string;
+  figures?: string;
+  discussion?: string;
+  conclusions?: string;
+  futureDirections?: string;
+  citations?: string;
+  authors?: string[];
   doi?: string;
+  sourceType?: "pubmed" | "arxiv" | "biorxiv" | "journal";
   url: string;
 };
 

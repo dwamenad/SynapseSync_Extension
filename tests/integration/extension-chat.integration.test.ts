@@ -29,6 +29,17 @@ describe("extension chat payload", () => {
           title: "Adaptive control in cognitive effort",
           abstract:
             "We examined how participants allocate effort under changing reward contingencies.",
+          methods:
+            "Twenty-four adults completed a probabilistic reversal-learning task during fMRI.",
+          discussion:
+            "Findings suggest dynamic VMPFC-striatal coupling during effort allocation.",
+          conclusions:
+            "Adaptive control signals are sensitive to expected value under volatility.",
+          futureDirections:
+            "Future work should test clinical populations and out-of-sample prediction.",
+          citations: "Botvinick et al. (2001); Daw et al. (2005)",
+          figures: "Figure 2 shows stronger Gain > Loss activity in VMPFC.",
+          sourceType: "pubmed",
           url: "https://pubmed.ncbi.nlm.nih.gov/98765432/",
           authors: ["A. Smith", "B. Jones"],
           doi: "10.1016/j.neuro.2026.01.001"

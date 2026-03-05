@@ -5,12 +5,19 @@ export type PaperData = {
   title: string;
   abstract: string;
   url: string;
+  methods?: string;
+  figures?: string;
+  discussion?: string;
+  conclusions?: string;
+  futureDirections?: string;
+  citations?: string;
   authors?: string[];
   doi?: string;
+  sourceType?: "pubmed" | "arxiv" | "biorxiv" | "journal";
 };
 
 const NEURO_SYSTEM_PROMPT = `You are an expert Neuroscience Research Assistant specializing in Cognition and Decision-Making.
-Your task is to synthesize the provided PubMed abstract into a structured "Master Literature Review" entry.
+Your task is to synthesize the provided research metadata and scraped sections into a structured "Master Literature Review" entry.
 
 STRICT FORMATTING RULES:
 1. Use Markdown headers for organization.
@@ -43,12 +50,13 @@ REQUIRED STRUCTURE:
 ---`;
 
 const GENERAL_SYSTEM_PROMPT = `You are an academic research assistant.
-Summarize the PubMed abstract as a concise literature-review entry with:
+Summarize the provided paper content as a concise literature-review entry with:
 1) Citation and link
 2) Research question
 3) Methods (sample, modality, task)
 4) Results and statistics (if available)
-5) Contributions and limitations.`;
+5) Contributions and limitations.
+Use available sections such as abstract, methods, discussion, conclusions, future directions, figures, and citations when present.`;
 
 export async function generateNeuroSummary(
   openai: OpenAI,
@@ -60,10 +68,11 @@ export async function generateNeuroSummary(
       `## ${paperData.title}`,
       `**Full Citation:** ${paperData.authors?.join(", ") || "Authors unavailable"}. (n.d.). ${paperData.title}.`,
       `**Link:** ${paperData.url}`,
+      paperData.sourceType ? `**Source Type:** ${paperData.sourceType}` : "",
       "",
       "### 1. Research Core",
       "- **Hypothesis:** Mock-mode placeholder for the tested mechanism.",
-      "- **Paradigm/Task:** PubMed abstract-based task summary placeholder.",
+      "- **Paradigm/Task:** Scraped-section task summary placeholder.",
       "",
       "### 2. Methodological Parameters",
       "- **Sample ($n$):** Not explicitly reported in mock mode.",
@@ -75,16 +84,25 @@ export async function generateNeuroSummary(
       "",
       "### 4. Synthesis for PhD Review",
       "- **Contribution:** Placeholder contribution summary.",
-      "- **Limitations:** Abstract-only synthesis; validate against full text.",
+      "- **Limitations:** Scraped-page synthesis; validate against full text.",
       "",
       "---"
-    ].join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   const promptPayload = {
     title: paperData.title,
     abstract: paperData.abstract,
+    methods: paperData.methods ?? null,
+    figures: paperData.figures ?? null,
+    discussion: paperData.discussion ?? null,
+    conclusions: paperData.conclusions ?? null,
+    futureDirections: paperData.futureDirections ?? null,
+    citations: paperData.citations ?? null,
     url: paperData.url,
+    sourceType: paperData.sourceType ?? null,
     authors: paperData.authors ?? [],
     doi: paperData.doi ?? null,
     neuroMode
