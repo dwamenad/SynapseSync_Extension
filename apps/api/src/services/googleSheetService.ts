@@ -4,6 +4,7 @@ import { env } from "../config/env";
 import { decryptJson, encryptJson } from "../lib/crypto";
 import { createOAuthClient } from "../lib/google";
 import { prisma } from "../lib/prisma";
+import { retryOnce } from "../lib/retry";
 
 type StoredOAuthPayload = {
   access_token?: string;
@@ -339,19 +340,9 @@ export async function generateEvidenceMatrixForUser(
     await moveSheetToFolderIfNeeded(drive, sheetId, recentDoc?.folderId);
     const rows = buildEvidenceMatrixRows(entries);
 
-    let attempts = 0;
-    while (attempts < 2) {
-      try {
-        await writeMatrixSheet(sheets, sheetId, rows);
-        break;
-      } catch (error) {
-        attempts += 1;
-        if (attempts >= 2) {
-          throw error;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 300 * attempts));
-      }
-    }
+    await retryOnce(() => writeMatrixSheet(sheets, sheetId, rows), {
+      baseDelayMs: 300
+    });
 
     const now = new Date();
     await prisma.evidenceMatrix.upsert({
