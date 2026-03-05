@@ -23,6 +23,7 @@
     "test:integration": "DATABASE_URL=file:./test.db prisma db push --skip-generate && DATABASE_URL=file:./test.db vitest run tests/integration --pool=threads --poolOptions.threads.minThreads=1 --poolOptions.threads.maxThreads=1",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "smoke:connection": "node scripts/smoke-connection-phase.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",

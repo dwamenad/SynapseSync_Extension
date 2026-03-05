@@ -288,6 +288,9 @@ npm run test:e2e
 
 # Build extension bundle
 npm run build:extension
+
+# Connection Phase smoke test
+npm run smoke:connection
 ```
 
 ---
