@@ -7,7 +7,7 @@ import {
 import { cosineSimilarity } from "../../apps/api/src/services/overlapService";
 import { buildSynthesisPrompt } from "../../apps/api/src/services/synthesisService";
 import type OpenAI from "openai";
-import type { PaperData } from "../../apps/api/src/services/neuroSummary";
+import type { PaperData } from "../../apps/api/src/services/researchSummary";
 
 describe("connection phase services", () => {
   it("ranks cosine similarity correctly", () => {
@@ -94,4 +94,3 @@ describe("connection phase services", () => {
     expect(prompt.papers).toHaveLength(2);
   });
 });
-

@@ -1,4 +1,4 @@
-import type { PaperData } from "./neuroSummary";
+import type { PaperData } from "./researchSummary";
 
 export const PROMPT_LIMITS = {
   title: 500,
@@ -33,4 +33,3 @@ export function clampPaperDataForPrompt(paperData: PaperData): PaperData {
     citations: clampText(paperData.citations, PROMPT_LIMITS.citations) || undefined
   };
 }
-

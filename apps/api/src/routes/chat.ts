@@ -8,7 +8,7 @@ import {
   appendSummaryToDocForUser,
   createGoogleDocForUser
 } from "../services/googleDocService";
-import { generateResearchSummary } from "../services/neuroSummary";
+import { generateResearchSummary } from "../services/researchSummary";
 import { savePaperEntryForAppend } from "../services/paperEntryService";
 
 const router = Router();

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../config/env";
-import type { PaperData } from "./neuroSummary";
+import type { PaperData } from "./researchSummary";
 import { clampPaperDataForPrompt, clampText, PROMPT_LIMITS } from "./promptLimits";
 
 const EvidenceFieldsSchema = z

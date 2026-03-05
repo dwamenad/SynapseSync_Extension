@@ -129,6 +129,3 @@ export async function generateResearchSummary(
 
   return text;
 }
-
-// Backward-compatible alias while older imports migrate.
-export const generateNeuroSummary = generateResearchSummary;

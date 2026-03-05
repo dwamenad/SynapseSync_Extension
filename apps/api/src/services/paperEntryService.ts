@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { prisma } from "../lib/prisma";
-import type { PaperData } from "./neuroSummary";
+import type { PaperData } from "./researchSummary";
 import { extractEvidenceFields } from "./evidenceExtraction";
 import { buildCandidateText, createEmbedding } from "./overlapService";
 
@@ -62,4 +62,3 @@ export async function listPaperEntriesForDoc(userId: string, targetDocId: string
     orderBy: { createdAt: "desc" }
   });
 }
-

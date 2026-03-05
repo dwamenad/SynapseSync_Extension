@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../config/env";
-import type { PaperData } from "./neuroSummary";
+import type { PaperData } from "./researchSummary";
 import { clampPaperDataForPrompt } from "./promptLimits";
 
 export type OverlapItem = {
