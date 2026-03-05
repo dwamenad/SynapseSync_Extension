@@ -5,6 +5,13 @@ import type {
   RecentDoc
 } from "./types";
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function parseJsonResponse<T>(res: Response): Promise<T> {
   const data = (await res.json()) as T;
   if (!res.ok) {
@@ -12,7 +19,7 @@ async function parseJsonResponse<T>(res: Response): Promise<T> {
       typeof (data as { error?: unknown }).error === "string"
         ? ((data as { error: string }).error as string)
         : `Request failed (${res.status})`;
-    throw new Error(errorMessage);
+    throw new ApiError(errorMessage, res.status);
   }
 
   return data;

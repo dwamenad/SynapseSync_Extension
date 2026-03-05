@@ -1,4 +1,4 @@
-import { SynapseSyncApi } from "./api";
+import { ApiError, SynapseSyncApi } from "./api";
 import type { OverlapCheckResponse, PaperData, RecentDoc } from "./types";
 
 const STORAGE_KEY_API_BASE = "synapsesync_api_base";
@@ -52,6 +52,18 @@ function renderOverlap(result: OverlapCheckResponse) {
   lines.push(result.gapInsight.opportunity);
   lines.push(`Confidence: ${result.gapInsight.confidence.toFixed(2)}`);
   overlapInsightsEl.textContent = lines.join("\n");
+}
+
+function isAuthReconnectError(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.status === 401 || error.status === 403;
+  }
+  if (error instanceof Error) {
+    return /(insufficient|permission|scope|unauthorized|forbidden|reconnect)/i.test(
+      error.message
+    );
+  }
+  return false;
 }
 
 function renderDocOptions(docs: RecentDoc[]) {
@@ -170,10 +182,15 @@ async function onSummarizeAppend() {
       const overlapResult = await api.checkOverlap({ targetDocId, paperData });
       renderOverlap(overlapResult);
     } catch (error) {
-      overlapInsightsEl.textContent =
-        error instanceof Error
-          ? `Overlap check failed: ${error.message}`
-          : "Overlap check failed. Continuing to append.";
+      if (isAuthReconnectError(error)) {
+        overlapInsightsEl.textContent =
+          "Overlap check requires updated Google permissions/session. Click Open Login to reconnect, then retry.";
+      } else {
+        overlapInsightsEl.textContent =
+          error instanceof Error
+            ? `Overlap check failed: ${error.message}`
+            : "Overlap check failed. Continuing to append.";
+      }
     }
 
     setStatus("Generating neuroscience summary and appending to doc...");
@@ -193,7 +210,13 @@ async function onSummarizeAppend() {
 
     setStatus(lines.join("\n"));
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : "Summarize & append failed.");
+    if (isAuthReconnectError(error)) {
+      setStatus(
+        "Google session/scope issue detected. Click Open Login to reconnect, then retry."
+      );
+    } else {
+      setStatus(error instanceof Error ? error.message : "Summarize & append failed.");
+    }
   } finally {
     setWorking(false);
   }
