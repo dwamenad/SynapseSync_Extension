@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SynapseSync</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0.85rem;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f5f7fb;
+        color: #12223c;
+      }
+      .panel {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .card {
+        background: white;
+        border: 1px solid #d4deef;
+        border-radius: 10px;
+        padding: 0.75rem;
+      }
+      label {
+        font-size: 0.9rem;
+        display: grid;
+        gap: 0.3rem;
+      }
+      input,
+      select,
+      button,
+      textarea {
+        font: inherit;
+      }
+      input,
+      select,
+      textarea {
+        border: 1px solid #c7d5ed;
+        border-radius: 8px;
+        padding: 0.48rem;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        background: #0c64e8;
+        color: white;
+        font-weight: 600;
+      }
+      button.secondary {
+        background: #e9f0fc;
+        color: #18468f;
+      }
+      .row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .row > * {
+        flex: 1;
+      }
+      .status {
+        white-space: pre-wrap;
+        min-height: 80px;
+        background: #fbfcff;
+        border: 1px solid #dbe3f2;
+        border-radius: 8px;
+        padding: 0.55rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <section class="card">
+        <h2 style="margin-top: 0">SynapseSync</h2>
+        <label>
+          Backend API Base URL
+          <div class="row">
+            <input id="apiBaseUrl" value="http://localhost:4000" />
+            <button id="saveApiBase" class="secondary" type="button">Save</button>
+          </div>
+        </label>
+        <div class="row" style="margin-top: 0.5rem">
+          <button id="openLogin" class="secondary" type="button">Open Login</button>
+          <button id="refreshDocs" class="secondary" type="button">Refresh Docs</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <label>
+          Target Google Doc
+          <select id="docSelect"></select>
+        </label>
+
+        <label style="margin-top: 0.5rem">
+          <input type="checkbox" id="neuroMode" checked style="width: auto" />
+          Neuro-Specific mode (Methods/Modality/$n$ focus)
+        </label>
+
+        <button id="summarizeAppend" type="button" style="margin-top: 0.55rem">
+          Summarize &amp; Append
+        </button>
+      </section>
+
+      <section class="card">
+        <h3 style="margin-top: 0">Status</h3>
+        <div id="status" class="status">Ready.</div>
+      </section>
+    </main>
+
+    <script type="module" src="dist/sidepanel.js"></script>
+  </body>
+</html>
