@@ -4,27 +4,23 @@ import type { PaperData, RecentDoc } from "./types";
 const STORAGE_KEY_API_BASE = "synapsesync_api_base";
 const DEFAULT_API_BASE = "http://localhost:4000";
 
-const apiBaseInput = document.querySelector<HTMLInputElement>("#apiBaseUrl");
-const saveApiBaseButton = document.querySelector<HTMLButtonElement>("#saveApiBase");
-const refreshDocsButton = document.querySelector<HTMLButtonElement>("#refreshDocs");
-const openLoginButton = document.querySelector<HTMLButtonElement>("#openLogin");
-const docSelect = document.querySelector<HTMLSelectElement>("#docSelect");
-const summarizeAppendButton = document.querySelector<HTMLButtonElement>("#summarizeAppend");
-const neuroModeToggle = document.querySelector<HTMLInputElement>("#neuroMode");
-const statusEl = document.querySelector<HTMLElement>("#status");
-
-if (
-  !apiBaseInput ||
-  !saveApiBaseButton ||
-  !refreshDocsButton ||
-  !openLoginButton ||
-  !docSelect ||
-  !summarizeAppendButton ||
-  !neuroModeToggle ||
-  !statusEl
-) {
-  throw new Error("Sidepanel UI failed to initialize.");
+function requireElement<T>(selector: string): T {
+  const element = document.querySelector(selector);
+  if (!element) {
+    throw new Error(`Sidepanel UI failed to initialize. Missing ${selector}`);
+  }
+  return element as T;
 }
+
+const apiBaseInput = requireElement<HTMLInputElement>("#apiBaseUrl");
+const saveApiBaseButton = requireElement<HTMLButtonElement>("#saveApiBase");
+const refreshDocsButton = requireElement<HTMLButtonElement>("#refreshDocs");
+const openLoginButton = requireElement<HTMLButtonElement>("#openLogin");
+const docSelect = requireElement<HTMLSelectElement>("#docSelect");
+const summarizeAppendButton =
+  requireElement<HTMLButtonElement>("#summarizeAppend");
+const neuroModeToggle = requireElement<HTMLInputElement>("#neuroMode");
+const statusEl = requireElement<HTMLElement>("#status");
 
 const api = new SynapseSyncApi(DEFAULT_API_BASE);
 
@@ -82,10 +78,20 @@ async function scrapeFromActivePubMedTab(): Promise<PaperData> {
   if (!tab?.id) {
     throw new Error("No active browser tab found.");
   }
+  if (!tab.url?.startsWith("https://pubmed.ncbi.nlm.nih.gov/")) {
+    throw new Error("Open a PubMed abstract tab before running Summarize & Append.");
+  }
 
-  const response = (await chrome.tabs.sendMessage(tab.id, {
-    type: "SYNAPSE_SYNC_GET_PAPER_DATA"
-  })) as { ok: boolean; paperData?: PaperData; error?: string };
+  let response: { ok: boolean; paperData?: PaperData; error?: string };
+  try {
+    response = (await chrome.tabs.sendMessage(tab.id, {
+      type: "SYNAPSE_SYNC_GET_PAPER_DATA"
+    })) as { ok: boolean; paperData?: PaperData; error?: string };
+  } catch {
+    throw new Error(
+      "Could not reach the PubMed scraper. Reload the tab and try again."
+    );
+  }
 
   if (!response?.ok || !response.paperData) {
     throw new Error(response?.error || "Could not scrape PubMed data from current tab.");

@@ -52,17 +52,21 @@ var SynapseSyncApi = class {
 // extension/src/sidepanel.ts
 var STORAGE_KEY_API_BASE = "synapsesync_api_base";
 var DEFAULT_API_BASE = "http://localhost:4000";
-var apiBaseInput = document.querySelector("#apiBaseUrl");
-var saveApiBaseButton = document.querySelector("#saveApiBase");
-var refreshDocsButton = document.querySelector("#refreshDocs");
-var openLoginButton = document.querySelector("#openLogin");
-var docSelect = document.querySelector("#docSelect");
-var summarizeAppendButton = document.querySelector("#summarizeAppend");
-var neuroModeToggle = document.querySelector("#neuroMode");
-var statusEl = document.querySelector("#status");
-if (!apiBaseInput || !saveApiBaseButton || !refreshDocsButton || !openLoginButton || !docSelect || !summarizeAppendButton || !neuroModeToggle || !statusEl) {
-  throw new Error("Sidepanel UI failed to initialize.");
+function requireElement(selector) {
+  const element = document.querySelector(selector);
+  if (!element) {
+    throw new Error(`Sidepanel UI failed to initialize. Missing ${selector}`);
+  }
+  return element;
 }
+var apiBaseInput = requireElement("#apiBaseUrl");
+var saveApiBaseButton = requireElement("#saveApiBase");
+var refreshDocsButton = requireElement("#refreshDocs");
+var openLoginButton = requireElement("#openLogin");
+var docSelect = requireElement("#docSelect");
+var summarizeAppendButton = requireElement("#summarizeAppend");
+var neuroModeToggle = requireElement("#neuroMode");
+var statusEl = requireElement("#status");
 var api = new SynapseSyncApi(DEFAULT_API_BASE);
 function setStatus(message) {
   statusEl.textContent = message;
@@ -110,9 +114,19 @@ async function scrapeFromActivePubMedTab() {
   if (!tab?.id) {
     throw new Error("No active browser tab found.");
   }
-  const response = await chrome.tabs.sendMessage(tab.id, {
-    type: "SYNAPSE_SYNC_GET_PAPER_DATA"
-  });
+  if (!tab.url?.startsWith("https://pubmed.ncbi.nlm.nih.gov/")) {
+    throw new Error("Open a PubMed abstract tab before running Summarize & Append.");
+  }
+  let response;
+  try {
+    response = await chrome.tabs.sendMessage(tab.id, {
+      type: "SYNAPSE_SYNC_GET_PAPER_DATA"
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the PubMed scraper. Reload the tab and try again."
+    );
+  }
   if (!response?.ok || !response.paperData) {
     throw new Error(response?.error || "Could not scrape PubMed data from current tab.");
   }
