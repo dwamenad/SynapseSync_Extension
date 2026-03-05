@@ -28,6 +28,9 @@ type FolderOption = {
   name: string;
 };
 
+const CHAT_STORAGE_KEY = "gdca_chat_history_v1";
+const FOLDER_STORAGE_KEY = "gdca_folder_id_v1";
+
 export default function DashboardClient() {
   const pickerApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "";
   const [user, setUser] = useState<User | null>(null);
@@ -67,7 +70,32 @@ export default function DashboardClient() {
     void loadMe();
     void loadRecentDocs();
     void loadCsrf();
+
+    const savedChat = window.localStorage.getItem(CHAT_STORAGE_KEY);
+    if (savedChat) {
+      try {
+        const parsed = JSON.parse(savedChat) as ChatMessage[];
+        if (Array.isArray(parsed)) {
+          setChat(parsed.slice(-20));
+        }
+      } catch {
+        // ignore malformed local state
+      }
+    }
+
+    const savedFolder = window.localStorage.getItem(FOLDER_STORAGE_KEY);
+    if (savedFolder) {
+      setFolderId(savedFolder);
+    }
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chat.slice(-20)));
+  }, [chat]);
+
+  useEffect(() => {
+    window.localStorage.setItem(FOLDER_STORAGE_KEY, folderId);
+  }, [folderId]);
 
   async function loadCsrf() {
     const res = await fetch("/api/csrf", { credentials: "include" });
@@ -263,6 +291,17 @@ export default function DashboardClient() {
               {item.text}
             </div>
           ))}
+        </div>
+
+        <div className="row" style={{ justifyContent: "flex-end", marginBottom: "0.75rem" }}>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() => setChat([])}
+            disabled={chat.length === 0}
+          >
+            Clear history
+          </button>
         </div>
 
         <form onSubmit={onSubmit} className="grid">
