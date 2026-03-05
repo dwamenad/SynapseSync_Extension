@@ -50,4 +50,22 @@ describe("chat API route", () => {
     expect(recentRes.body.docs.length).toBe(1);
     expect(recentRes.body.docs[0].title).toBe("Integration Route");
   });
+
+  it("rejects oversized chat messages", async () => {
+    const app = createApp();
+    const agent = request.agent(app);
+
+    await agent.get("/auth/google").expect(302);
+
+    const csrfRes = await agent.get("/api/csrf").expect(200);
+    const csrfToken = csrfRes.body.csrfToken as string;
+
+    await agent
+      .post("/api/chat")
+      .set("x-csrf-token", csrfToken)
+      .send({
+        message: "x".repeat(12_001)
+      })
+      .expect(400);
+  });
 });

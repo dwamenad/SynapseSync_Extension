@@ -99,6 +99,30 @@ describe("research routes", () => {
     expect(response.body.gapInsight).toHaveProperty("opportunity");
   });
 
+  it("rejects oversized overlap payloads", async () => {
+    const app = createApp();
+    const agent = request.agent(app);
+    await agent.get("/auth/google").expect(302);
+
+    const csrfRes = await agent.get("/api/csrf").expect(200);
+    const csrfToken = csrfRes.body.csrfToken as string;
+
+    const response = await agent
+      .post("/api/research/overlap-check")
+      .set("x-csrf-token", csrfToken)
+      .send({
+        targetDocId: "doc-x",
+        paperData: {
+          title: "Oversized payload",
+          abstract: "a".repeat(20_001),
+          url: "https://example.org/oversized"
+        }
+      })
+      .expect(400);
+
+    expect(response.body.error).toContain("Invalid overlap-check payload");
+  });
+
   it("creates and retrieves an evidence matrix in mock mode", async () => {
     const app = createApp();
     const agent = request.agent(app);
@@ -177,4 +201,3 @@ describe("research routes", () => {
     expect(runs[0].mode).toBe("chronological");
   });
 });
-
