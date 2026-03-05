@@ -11,10 +11,48 @@ import meRoutes from "./routes/me";
 
 export function createApp() {
   const app = express();
+  const configuredExtensionOrigins = (env.CHROME_EXTENSION_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const isAllowedOrigin = (origin: string) => {
+    if (origin === env.APP_BASE_URL) {
+      return true;
+    }
+
+    if (configuredExtensionOrigins.includes(origin)) {
+      return true;
+    }
+
+    if (env.NODE_ENV !== "production" && origin.startsWith("chrome-extension://")) {
+      return true;
+    }
+
+    return false;
+  };
 
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser(env.SESSION_COOKIE_SECRET));
+  app.use((req, res, next) => {
+    const origin = req.get("origin");
+    if (origin && isAllowedOrigin(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Vary", "Origin");
+      res.header("Access-Control-Allow-Credentials", "true");
+      res.header(
+        "Access-Control-Allow-Headers",
+        "Content-Type, X-CSRF-Token, X-Requested-With"
+      );
+      res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
+    }
+
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
+    return next();
+  });
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
