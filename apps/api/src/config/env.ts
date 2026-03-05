@@ -13,6 +13,12 @@ const EnvSchema = z.object({
   SESSION_COOKIE_SECRET: z.string().min(1),
   APP_BASE_URL: z.string().url().default("http://localhost:3000"),
   CHROME_EXTENSION_ORIGINS: z.string().optional(),
+  RESEARCH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RESEARCH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(40),
+  LOG_REQUESTS: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
   MOCK_AUTH: z
     .string()
     .optional()

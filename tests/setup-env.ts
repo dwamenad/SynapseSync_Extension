@@ -8,5 +8,8 @@ process.env.TOKEN_ENCRYPTION_KEY =
 process.env.DATABASE_URL = process.env.DATABASE_URL || "file:./test.db";
 process.env.SESSION_COOKIE_SECRET = process.env.SESSION_COOKIE_SECRET || "test-session-secret";
 process.env.APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3000";
+process.env.RESEARCH_RATE_LIMIT_WINDOW_MS =
+  process.env.RESEARCH_RATE_LIMIT_WINDOW_MS || "60000";
+process.env.RESEARCH_RATE_LIMIT_MAX = process.env.RESEARCH_RATE_LIMIT_MAX || "200";
 process.env.MOCK_AUTH = process.env.MOCK_AUTH || "true";
 process.env.MOCK_GOOGLE_APIS = process.env.MOCK_GOOGLE_APIS || "true";
