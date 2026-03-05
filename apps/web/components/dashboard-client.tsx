@@ -89,6 +89,7 @@ export default function DashboardClient() {
   const [matrixLoading, setMatrixLoading] = useState(false);
   const [matrixActionLoading, setMatrixActionLoading] = useState(false);
   const [matrixError, setMatrixError] = useState<string | null>(null);
+  const [googleReconnectNeeded, setGoogleReconnectNeeded] = useState(false);
 
   const [synthesisMode, setSynthesisMode] = useState<"thematic" | "chronological">(
     "thematic"
@@ -97,6 +98,12 @@ export default function DashboardClient() {
   const [synthesisPreview, setSynthesisPreview] = useState("");
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [synthesisDocUrl, setSynthesisDocUrl] = useState<string | null>(null);
+
+  function isAuthScopeError(message: string) {
+    return /(insufficient|permission|scope|unauthorized|forbidden|reconnect)/i.test(
+      message
+    );
+  }
 
   async function loadMe() {
     setBootLoading(true);
@@ -233,6 +240,7 @@ export default function DashboardClient() {
   async function loadMatrixStatus(targetDocId: string) {
     setMatrixLoading(true);
     setMatrixError(null);
+    setGoogleReconnectNeeded(false);
     try {
       const res = await fetch(
         `/api/research/evidence-matrix?targetDocId=${encodeURIComponent(targetDocId)}`,
@@ -245,9 +253,10 @@ export default function DashboardClient() {
       setMatrixStatus(data);
     } catch (err) {
       setMatrixStatus(null);
-      setMatrixError(
-        err instanceof Error ? err.message : "Failed to load evidence matrix status"
-      );
+      const message =
+        err instanceof Error ? err.message : "Failed to load evidence matrix status";
+      setMatrixError(message);
+      setGoogleReconnectNeeded(isAuthScopeError(message));
     } finally {
       setMatrixLoading(false);
     }
@@ -260,6 +269,7 @@ export default function DashboardClient() {
 
     setMatrixActionLoading(true);
     setMatrixError(null);
+    setGoogleReconnectNeeded(false);
     try {
       const token = csrfToken || (await loadCsrf());
       const res = await fetch("/api/research/evidence-matrix", {
@@ -284,7 +294,10 @@ export default function DashboardClient() {
       });
       setStatusText("Evidence Matrix refreshed successfully.");
     } catch (err) {
-      setMatrixError(err instanceof Error ? err.message : "Evidence Matrix generation failed");
+      const message =
+        err instanceof Error ? err.message : "Evidence Matrix generation failed";
+      setMatrixError(message);
+      setGoogleReconnectNeeded(isAuthScopeError(message));
     } finally {
       setMatrixActionLoading(false);
     }
@@ -308,6 +321,7 @@ export default function DashboardClient() {
     }
 
     setSynthesisError(null);
+    setGoogleReconnectNeeded(false);
     setSynthesisLoading(true);
     try {
       const token = csrfToken || (await loadCsrf());
@@ -333,7 +347,9 @@ export default function DashboardClient() {
       setSynthesisDocUrl(data.appendedDoc?.documentUrl || null);
       setStatusText("Synthesis draft appended to selected document.");
     } catch (err) {
-      setSynthesisError(err instanceof Error ? err.message : "Synthesis failed");
+      const message = err instanceof Error ? err.message : "Synthesis failed";
+      setSynthesisError(message);
+      setGoogleReconnectNeeded(isAuthScopeError(message));
     } finally {
       setSynthesisLoading(false);
     }
@@ -714,6 +730,11 @@ export default function DashboardClient() {
               {matrixError ? (
                 <p style={{ color: "#b10f2e", marginTop: "0.5rem" }}>{matrixError}</p>
               ) : null}
+              {googleReconnectNeeded ? (
+                <p className="meta" style={{ marginTop: "0.4rem" }}>
+                  Reconnect Google to refresh scopes: <a href="/auth/google">Reconnect</a>
+                </p>
+              ) : null}
             </div>
 
             <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "0.8rem" }}>
@@ -805,6 +826,11 @@ export default function DashboardClient() {
 
               {synthesisError ? (
                 <p style={{ color: "#b10f2e", marginTop: "0.5rem" }}>{synthesisError}</p>
+              ) : null}
+              {googleReconnectNeeded ? (
+                <p className="meta" style={{ marginTop: "0.4rem" }}>
+                  Reconnect Google to refresh scopes: <a href="/auth/google">Reconnect</a>
+                </p>
               ) : null}
             </div>
           </div>
