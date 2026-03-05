@@ -3,6 +3,7 @@ import type { PaperEntry } from "@prisma/client";
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
 import { appendSectionToDocForUser } from "./googleDocService";
+import { clampText, PROMPT_LIMITS } from "./promptLimits";
 
 export type SynthesisMode = "thematic" | "chronological";
 
@@ -21,15 +22,15 @@ function wordCount(text: string) {
 export function buildSynthesisPrompt(mode: SynthesisMode, entries: PaperEntry[]) {
   const ordered = entries.map((entry, index) => ({
     index: index + 1,
-    title: entry.title,
+    title: clampText(entry.title, PROMPT_LIMITS.title),
     createdAt: entry.createdAt.toISOString(),
-    methodology: entry.methodology,
-    modality: entry.modality,
-    sampleSize: entry.sampleSize,
-    brainRegions: entry.brainRegions,
-    gainVsLoss: entry.gainVsLoss,
-    keyStats: entry.keyStats,
-    summary: entry.summary
+    methodology: clampText(entry.methodology, 500),
+    modality: clampText(entry.modality, 200),
+    sampleSize: clampText(entry.sampleSize, 100),
+    brainRegions: clampText(entry.brainRegions, 300),
+    gainVsLoss: clampText(entry.gainVsLoss, 300),
+    keyStats: clampText(entry.keyStats, 300),
+    summary: clampText(entry.summary, PROMPT_LIMITS.summary)
   }));
 
   return {
@@ -145,4 +146,3 @@ export async function synthesizeAndAppendForUser(args: {
     appendedDoc
   };
 }
-

@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../config/env";
 import type { PaperData } from "./neuroSummary";
+import { clampPaperDataForPrompt, clampText, PROMPT_LIMITS } from "./promptLimits";
 
 const EvidenceFieldsSchema = z
   .object({
@@ -177,17 +178,20 @@ export async function extractEvidenceFields(
   paperData: PaperData,
   summary: string
 ): Promise<EvidenceFields> {
+  const clampedPaper = clampPaperDataForPrompt(paperData);
+  const clampedSummary = clampText(summary, PROMPT_LIMITS.summary);
+
   if (env.MOCK_GOOGLE_APIS) {
-    return fallbackExtraction(paperData, summary);
+    return fallbackExtraction(clampedPaper, clampedSummary);
   }
 
   const payload = {
-    title: paperData.title,
-    abstract: paperData.abstract,
-    methods: paperData.methods ?? null,
-    discussion: paperData.discussion ?? null,
-    conclusions: paperData.conclusions ?? null,
-    summary
+    title: clampedPaper.title,
+    abstract: clampedPaper.abstract,
+    methods: clampedPaper.methods ?? null,
+    discussion: clampedPaper.discussion ?? null,
+    conclusions: clampedPaper.conclusions ?? null,
+    summary: clampedSummary
   };
 
   try {
@@ -213,11 +217,11 @@ export async function extractEvidenceFields(
 
     const parsed = EvidenceFieldsSchema.safeParse(JSON.parse(rawJson));
     if (!parsed.success) {
-      return fallbackExtraction(paperData, summary);
+      return fallbackExtraction(clampedPaper, clampedSummary);
     }
 
     return normalizeFields(parsed.data);
   } catch {
-    return fallbackExtraction(paperData, summary);
+    return fallbackExtraction(clampedPaper, clampedSummary);
   }
 }

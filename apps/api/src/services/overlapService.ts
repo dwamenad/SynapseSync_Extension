@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../config/env";
 import type { PaperData } from "./neuroSummary";
+import { clampPaperDataForPrompt } from "./promptLimits";
 
 export type OverlapItem = {
   paperEntryId: string;
@@ -31,12 +32,13 @@ function compactText(value: string | null | undefined) {
 }
 
 export function buildCandidateText(paperData: PaperData) {
+  const clamped = clampPaperDataForPrompt(paperData);
   return [
-    paperData.title,
-    paperData.abstract,
-    paperData.methods,
-    paperData.discussion,
-    paperData.conclusions
+    clamped.title,
+    clamped.abstract,
+    clamped.methods,
+    clamped.discussion,
+    clamped.conclusions
   ]
     .filter(Boolean)
     .join("\n");
@@ -181,6 +183,8 @@ async function deriveGapInsight(
   paperData: PaperData,
   overlaps: OverlapItem[]
 ): Promise<GapInsight> {
+  const clampedPaper = clampPaperDataForPrompt(paperData);
+
   if (overlaps.length === 0) {
     return {
       headline: "No strong overlap yet",
@@ -211,7 +215,7 @@ async function deriveGapInsight(
         {
           role: "user",
           content: JSON.stringify({
-            candidatePaper: paperData,
+            candidatePaper: clampedPaper,
             topOverlaps: overlaps
           })
         }
@@ -282,4 +286,3 @@ export async function checkOverlapForPaper(
   const gapInsight = await deriveGapInsight(openai, paperData, overlaps);
   return { overlaps, gapInsight };
 }
-
