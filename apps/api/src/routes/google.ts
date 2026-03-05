@@ -1,10 +1,11 @@
 import { Router } from "express";
+import { requireCsrf } from "../middleware/csrf";
 import { createGoogleDocForUser } from "../services/googleDocService";
 import { prisma } from "../lib/prisma";
 
 const router = Router();
 
-router.post("/createDoc", async (req, res) => {
+router.post("/createDoc", requireCsrf, async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) {

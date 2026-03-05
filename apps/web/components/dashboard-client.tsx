@@ -31,6 +31,7 @@ export default function DashboardClient() {
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [csrfToken, setCsrfToken] = useState<string>("");
 
   async function loadMe() {
     const res = await fetch("/api/me", { credentials: "include" });
@@ -54,7 +55,19 @@ export default function DashboardClient() {
   useEffect(() => {
     void loadMe();
     void loadRecentDocs();
+    void loadCsrf();
   }, []);
+
+  async function loadCsrf() {
+    const res = await fetch("/api/csrf", { credentials: "include" });
+    if (!res.ok) {
+      return "";
+    }
+    const data = await res.json();
+    const token = data.csrfToken || "";
+    setCsrfToken(token);
+    return token;
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,10 +82,14 @@ export default function DashboardClient() {
     setMessage("");
 
     try {
+      const token = csrfToken || (await loadCsrf());
       const res = await fetch("/api/chat", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": token
+        },
         body: JSON.stringify({
           message: current,
           folderId: folderId.trim() || undefined
@@ -98,9 +115,11 @@ export default function DashboardClient() {
   }
 
   async function onSignOut() {
+    const token = csrfToken || (await loadCsrf());
     await fetch("/auth/logout", {
       method: "POST",
-      credentials: "include"
+      credentials: "include",
+      headers: { "x-csrf-token": token }
     });
     window.location.href = "/";
   }

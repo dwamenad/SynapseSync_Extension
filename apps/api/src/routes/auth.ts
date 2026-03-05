@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { env } from "../config/env";
+import { hasValidCsrf } from "../lib/csrf";
 import { createOAuthClient, GOOGLE_SCOPES } from "../lib/google";
 import { prisma } from "../lib/prisma";
 import {
@@ -146,6 +147,10 @@ router.get("/google/callback", async (req, res) => {
 });
 
 router.post("/logout", async (req, res) => {
+  if (!hasValidCsrf(req)) {
+    return res.status(403).json({ error: "Invalid CSRF token" });
+  }
+
   const sessionId = req.cookies.app_session as string | undefined;
   if (sessionId) {
     await prisma.session.deleteMany({

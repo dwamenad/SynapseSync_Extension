@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import { requireAuth } from "./middleware/auth";
 import authRoutes from "./routes/auth";
 import chatRoutes from "./routes/chat";
+import csrfRoutes from "./routes/csrf";
 import googleRoutes from "./routes/google";
 import meRoutes from "./routes/me";
 
@@ -21,6 +22,7 @@ export function createApp() {
 
   app.use("/auth", authRoutes);
   app.use("/api", requireAuth, meRoutes);
+  app.use("/api", requireAuth, csrfRoutes);
   app.use("/api", requireAuth, chatRoutes);
   app.use("/api/google", requireAuth, googleRoutes);
 

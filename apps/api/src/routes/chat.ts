@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../config/env";
+import { requireCsrf } from "../middleware/csrf";
 import { createGoogleDocForUser } from "../services/googleDocService";
 
 const router = Router();
@@ -37,7 +38,7 @@ const toolSchema = {
   required: ["title", "content"]
 } as const;
 
-router.post("/chat", async (req, res) => {
+router.post("/chat", requireCsrf, async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized" });
