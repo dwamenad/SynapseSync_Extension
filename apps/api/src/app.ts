@@ -2,6 +2,7 @@ import "dotenv/config";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { env } from "./config/env";
+import { createRequestId, summarizeRequestBody } from "./lib/requestLogging";
 import { requireAuth } from "./middleware/auth";
 import authRoutes from "./routes/auth";
 import chatRoutes from "./routes/chat";
@@ -36,6 +37,34 @@ export function createApp() {
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser(env.SESSION_COOKIE_SECRET));
+  app.use((req, res, next) => {
+    const requestId = createRequestId();
+    const startedAt = Date.now();
+    res.setHeader("x-request-id", requestId);
+    res.locals.requestId = requestId;
+
+    res.on("finish", () => {
+      if (!env.LOG_REQUESTS) {
+        return;
+      }
+      const durationMs = Date.now() - startedAt;
+      const summary = summarizeRequestBody(req);
+      // Token-safe request logging for local debugging and API observability.
+      console.log(
+        JSON.stringify({
+          requestId,
+          method: req.method,
+          path: req.path,
+          status: res.statusCode,
+          durationMs,
+          userId: req.user?.id || null,
+          bodySummary: summary
+        })
+      );
+    });
+
+    next();
+  });
   app.use((req, res, next) => {
     const origin = req.get("origin");
     if (origin && isAllowedOrigin(origin)) {
