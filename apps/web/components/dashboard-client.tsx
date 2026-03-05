@@ -21,6 +21,7 @@ type RecentDoc = {
 type ChatMessage = {
   role: "user" | "assistant";
   text: string;
+  createdAt: string;
 };
 
 type FolderOption = {
@@ -74,9 +75,16 @@ export default function DashboardClient() {
     const savedChat = window.localStorage.getItem(CHAT_STORAGE_KEY);
     if (savedChat) {
       try {
-        const parsed = JSON.parse(savedChat) as ChatMessage[];
+        const parsed = JSON.parse(savedChat) as Array<Partial<ChatMessage>>;
         if (Array.isArray(parsed)) {
-          setChat(parsed.slice(-20));
+          const normalized = parsed
+            .filter((msg) => msg.role === "user" || msg.role === "assistant")
+            .map((msg) => ({
+              role: msg.role as "user" | "assistant",
+              text: msg.text || "",
+              createdAt: msg.createdAt || new Date().toISOString()
+            }));
+          setChat(normalized.slice(-20));
         }
       } catch {
         // ignore malformed local state
@@ -117,7 +125,10 @@ export default function DashboardClient() {
     const current = message.trim();
     setError(null);
     setLoading(true);
-    setChat((prev) => [...prev, { role: "user", text: current }]);
+    setChat((prev) => [
+      ...prev,
+      { role: "user", text: current, createdAt: new Date().toISOString() }
+    ]);
     setMessage("");
 
     try {
@@ -144,13 +155,29 @@ export default function DashboardClient() {
         ? `${data.message} ${data.createdDoc.documentUrl}`
         : data.message;
 
-      setChat((prev) => [...prev, { role: "assistant", text: output }]);
+      setChat((prev) => [
+        ...prev,
+        { role: "assistant", text: output, createdAt: new Date().toISOString() }
+      ]);
       await loadRecentDocs();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setLoading(false);
     }
+  }
+
+  function renderMessageText(raw: string) {
+    const parts = raw.split(/(https?:\/\/[^\s]+)/g);
+    return parts.map((part, idx) =>
+      /^https?:\/\//.test(part) ? (
+        <a key={`${part}-${idx}`} href={part} target="_blank" rel="noreferrer">
+          {part}
+        </a>
+      ) : (
+        <span key={`${part}-${idx}`}>{part}</span>
+      )
+    );
   }
 
   async function onSignOut() {
@@ -288,7 +315,10 @@ export default function DashboardClient() {
         <div className="chat-log" style={{ marginBottom: "1rem" }}>
           {chat.map((item, idx) => (
             <div className={`chat-msg ${item.role}`} key={`${item.role}-${idx}`}>
-              {item.text}
+              <div>{renderMessageText(item.text)}</div>
+              <div className="meta" style={{ marginTop: "0.35rem" }}>
+                {new Date(item.createdAt).toLocaleTimeString()}
+              </div>
             </div>
           ))}
         </div>
