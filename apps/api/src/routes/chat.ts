@@ -9,6 +9,7 @@ import {
   createGoogleDocForUser
 } from "../services/googleDocService";
 import { generateNeuroSummary } from "../services/neuroSummary";
+import { savePaperEntryForAppend } from "../services/paperEntryService";
 
 const router = Router();
 
@@ -80,6 +81,14 @@ router.post("/chat", requireCsrf, async (req, res) => {
         documentId: extensionParsed.data.targetDocId,
         paperTitle: extensionParsed.data.paperData.title,
         paperUrl: extensionParsed.data.paperData.url,
+        summary
+      });
+
+      await savePaperEntryForAppend({
+        openai,
+        userId,
+        sourceDocumentId: extensionParsed.data.targetDocId,
+        paperData: extensionParsed.data.paperData,
         summary
       });
 

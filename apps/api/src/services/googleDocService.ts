@@ -35,6 +35,19 @@ type AppendDocResult = {
   appended: true;
 };
 
+export const appendSectionArgsSchema = z.object({
+  documentId: z.string().min(1),
+  sectionTitle: z.string().min(1),
+  content: z.string().min(1),
+  insertDivider: z.boolean().default(true)
+});
+export type AppendSectionArgs = z.infer<typeof appendSectionArgsSchema>;
+type AppendSectionResult = {
+  documentId: string;
+  documentUrl: string;
+  appended: true;
+};
+
 type StoredOAuthPayload = {
   access_token?: string;
   refresh_token?: string;
@@ -163,7 +176,7 @@ export async function appendSummaryToDocForUser(userId: string, rawArgs: unknown
 
     const afterRuleIndex = await getDocumentInsertionIndex(docs, args.documentId);
     const sourcePrefix = "Source: ";
-    const linkLabel = "PubMed Link";
+    const linkLabel = "Source Link";
     const textBlock = `${args.paperTitle}\n${args.summary}\n${sourcePrefix}${linkLabel}\n\n`;
 
     const titleStart = afterRuleIndex;
@@ -220,6 +233,75 @@ export async function appendSummaryToDocForUser(userId: string, rawArgs: unknown
       documentUrl: `https://docs.google.com/document/d/${args.documentId}/edit`,
       appended: true
     } satisfies AppendDocResult;
+  });
+}
+
+export async function appendSectionToDocForUser(userId: string, rawArgs: unknown) {
+  const args = appendSectionArgsSchema.parse(rawArgs);
+
+  if (env.MOCK_GOOGLE_APIS) {
+    return {
+      documentId: args.documentId,
+      documentUrl: `https://docs.google.com/document/d/${args.documentId}/edit`,
+      appended: true
+    } satisfies AppendSectionResult;
+  }
+
+  return withUserGoogleClient(userId, async ({ docs }) => {
+    let insertionIndex = await getDocumentInsertionIndex(docs, args.documentId);
+
+    if (args.insertDivider) {
+      const horizontalRuleRequest = {
+        insertHorizontalRule: {
+          location: { index: insertionIndex }
+        }
+      } as unknown as docs_v1.Schema$Request;
+
+      await docs.documents.batchUpdate({
+        documentId: args.documentId,
+        requestBody: {
+          requests: [horizontalRuleRequest]
+        }
+      });
+
+      insertionIndex = await getDocumentInsertionIndex(docs, args.documentId);
+    }
+
+    const textBlock = `${args.sectionTitle}\n${args.content}\n\n`;
+    const titleStart = insertionIndex;
+    const titleEnd = titleStart + args.sectionTitle.length;
+
+    await docs.documents.batchUpdate({
+      documentId: args.documentId,
+      requestBody: {
+        requests: [
+          {
+            insertText: {
+              location: { index: insertionIndex },
+              text: textBlock
+            }
+          },
+          {
+            updateParagraphStyle: {
+              range: {
+                startIndex: titleStart,
+                endIndex: titleEnd
+              },
+              paragraphStyle: {
+                namedStyleType: "HEADING_2"
+              },
+              fields: "namedStyleType"
+            }
+          }
+        ]
+      }
+    });
+
+    return {
+      documentId: args.documentId,
+      documentUrl: `https://docs.google.com/document/d/${args.documentId}/edit`,
+      appended: true
+    } satisfies AppendSectionResult;
   });
 }
 

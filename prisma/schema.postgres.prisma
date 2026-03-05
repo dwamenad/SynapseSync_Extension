@@ -16,6 +16,9 @@ model User {
   sessions         Session[]
   oauthToken       OAuthToken?
   recentDocs       RecentDoc[]
+  paperEntries     PaperEntry[]
+  evidenceMatrices EvidenceMatrix[]
+  synthesisRuns    SynthesisRun[]
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 }
@@ -53,4 +56,67 @@ model RecentDoc {
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+model PaperEntry {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceDocumentId String
+  title            String
+  url              String
+  doi              String?
+  sourceType       String?
+  authorsJson      String?
+  abstract         String
+  methods          String?
+  figures          String?
+  discussion       String?
+  conclusions      String?
+  futureDirections String?
+  citations        String?
+  summary          String
+  methodology      String?
+  sampleSize       String?
+  modality         String?
+  brainRegions     String?
+  gainVsLoss       String?
+  keyStats         String?
+  embeddingJson    String?
+  createdAt        DateTime @default(now())
+
+  @@index([userId, sourceDocumentId, createdAt])
+  @@index([sourceDocumentId])
+}
+
+model EvidenceMatrix {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceDocumentId String
+  sheetId          String   @unique
+  sheetUrl         String
+  sheetTitle       String
+  lastGeneratedAt  DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, sourceDocumentId])
+  @@index([userId, sourceDocumentId])
+}
+
+model SynthesisRun {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceDocumentId    String
+  mode                String
+  paperEntryIdsJson   String
+  wordCount           Int
+  synthesisText       String
+  appendedDocumentId  String
+  appendedDocumentUrl String
+  createdAt           DateTime @default(now())
+
+  @@index([userId, sourceDocumentId, createdAt])
 }

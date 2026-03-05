@@ -8,6 +8,7 @@ import chatRoutes from "./routes/chat";
 import csrfRoutes from "./routes/csrf";
 import googleRoutes from "./routes/google";
 import meRoutes from "./routes/me";
+import researchRoutes from "./routes/research";
 
 export function createApp() {
   const app = express();
@@ -63,6 +64,7 @@ export function createApp() {
   app.use("/api", requireAuth, csrfRoutes);
   app.use("/api", requireAuth, chatRoutes);
   app.use("/api/google", requireAuth, googleRoutes);
+  app.use("/api/research", requireAuth, researchRoutes);
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = err instanceof Error ? err.message : "Unexpected error";
