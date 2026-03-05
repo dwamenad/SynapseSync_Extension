@@ -1,15 +1,15 @@
-# SynapseSync
+# SynapseSync_Extension
 
 **Research-to-Doc pipeline for Neuroscience PhDs**  
-Scrape PubMed abstracts from Chrome, generate a structured neuroscience literature summary, and append it into a selected Google Doc.
+Scrape PubMed, arXiv, bioRxiv, or journal pages from Chrome, generate a structured neuroscience literature summary, and append it into a selected Google Doc.
 
 ---
 
-SynapseSync combines:
+SynapseSync_Extension combines:
 
 - **Next.js dashboard** for chat and document management
 - **Express/TypeScript backend** for OAuth, AI orchestration, and Google Docs updates
-- **Chrome Extension (Manifest V3)** side panel for PubMed scraping + one-click append
+- **Chrome Extension (Manifest V3)** side panel for multi-source paper scraping + one-click append
 - **Prisma data layer** (SQLite local, Postgres-ready schema included)
 
 Core capabilities:
@@ -18,7 +18,7 @@ Core capabilities:
 - Secure token encryption at rest (AES-256-GCM)
 - OpenAI Responses API integration
 - Google Docs creation and append workflows
-- PubMed-to-Doc extension flow with neuroscience-specific summarization mode
+- Multi-source paper-to-Doc extension flow with neuroscience-specific summarization mode
 - CSRF protection and session handling
 
 ---
@@ -84,11 +84,15 @@ Then in Chrome:
 3. Click **Load unpacked**
 4. Select `extension/`
 
-### Step 5: Use SynapseSync flow
+### Step 5: Use SynapseSync_Extension flow
 
 1. Sign in to Google from web app (`/auth/google`) or from extension “Open Login”
-2. Open a PubMed abstract page (`https://pubmed.ncbi.nlm.nih.gov/...`)
-3. Open SynapseSync side panel
+2. Open a supported paper page:
+   - PubMed: `https://pubmed.ncbi.nlm.nih.gov/...`
+   - arXiv: `https://arxiv.org/abs/...`
+   - bioRxiv: `https://www.biorxiv.org/...`
+   - or another journal article page
+3. Open SynapseSync_Extension side panel
 4. Select target doc from Recent Docs
 5. Click **Summarize & Append**
 
@@ -105,12 +109,13 @@ Then in Chrome:
    - extension payload mode for paper append
 4. Google Docs API updates document content through `documents.batchUpdate`
 
-### Extension Flow (PubMed -> Google Doc)
+### Extension Flow (Paper Page -> Google Doc)
 
-1. `content.ts` scrapes current PubMed page:
-   - `h1.heading-title`
-   - `.abstract-content`
-   - authors, DOI, page URL
+1. `content.ts` scrapes current paper page (PubMed/arXiv/bioRxiv/journal fallback):
+   - title
+   - abstract
+   - methods, figures, discussion, conclusions, future directions (if available)
+   - citations, authors, DOI, source type, page URL
 2. `sidepanel.ts` loads recent docs from backend
 3. On **Summarize & Append**:
    - requests scraped payload from content script
@@ -127,7 +132,7 @@ Then in Chrome:
 1. Insert horizontal rule at document end
 2. Insert paper title and style as **Heading 2**
 3. Insert AI-generated summary body
-4. Insert linked PubMed URL
+4. Insert linked source URL
 
 ---
 
@@ -172,7 +177,14 @@ Then in Chrome:
   "paperData": {
     "title": "Paper title",
     "abstract": "Abstract text",
-    "url": "https://pubmed.ncbi.nlm.nih.gov/...",
+    "methods": "Methods text (optional)",
+    "discussion": "Discussion text (optional)",
+    "conclusions": "Conclusions text (optional)",
+    "futureDirections": "Future work text (optional)",
+    "citations": "Citations list text (optional)",
+    "figures": "Figure caption text (optional)",
+    "sourceType": "pubmed | arxiv | biorxiv | journal (optional)",
+    "url": "https://source-paper-url/...",
     "authors": ["Author A", "Author B"],
     "doi": "10.xxxx/..."
   },
@@ -200,6 +212,8 @@ Manifest highlights:
 - permissions: `activeTab`, `storage`, `scripting`, `sidePanel`, `tabs`
 - host permissions:
   - `https://pubmed.ncbi.nlm.nih.gov/*`
+  - `https://arxiv.org/*`
+  - `https://www.biorxiv.org/*`
   - `http://localhost:4000/*`
 - side panel default path: `sidepanel.html`
 
@@ -302,7 +316,7 @@ npm run build:extension
 
 ## Disclaimer
 
-SynapseSync is a developer project scaffold and not medical advice software. Always validate literature summaries against full-text papers and primary data before academic or clinical use.
+SynapseSync_Extension is a developer project scaffold and not medical advice software. Always validate literature summaries against full-text papers and primary data before academic or clinical use.
 
 ---
 

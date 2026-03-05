@@ -4,10 +4,10 @@ export default function HomePage() {
   return (
     <main className="container">
       <div className="card" style={{ marginBottom: "1rem" }}>
-        <h1>Google Docs Chat Creator</h1>
+        <h1>SynapseSync_Extension</h1>
         <p className="meta">
-          Sign in with Google, then ask ChatGPT to create and write Google Docs in your
-          Drive.
+          Sign in with Google, then ask ChatGPT to create, summarize, and write Google
+          Docs in your Drive.
         </p>
         <div className="row">
           <a className="button primary" href="/auth/google">
