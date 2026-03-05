@@ -1,5 +1,5 @@
 import { SynapseSyncApi } from "./api";
-import type { PaperData, RecentDoc } from "./types";
+import type { OverlapCheckResponse, PaperData, RecentDoc } from "./types";
 
 const STORAGE_KEY_API_BASE = "synapsesync_api_base";
 const DEFAULT_API_BASE = "http://localhost:4000";
@@ -20,6 +20,7 @@ const docSelect = requireElement<HTMLSelectElement>("#docSelect");
 const summarizeAppendButton =
   requireElement<HTMLButtonElement>("#summarizeAppend");
 const neuroModeToggle = requireElement<HTMLInputElement>("#neuroMode");
+const overlapInsightsEl = requireElement<HTMLElement>("#overlapInsights");
 const statusEl = requireElement<HTMLElement>("#status");
 
 const api = new SynapseSyncApi(DEFAULT_API_BASE);
@@ -31,6 +32,26 @@ function setStatus(message: string) {
 function setWorking(isWorking: boolean) {
   summarizeAppendButton.disabled = isWorking;
   refreshDocsButton.disabled = isWorking;
+}
+
+function renderOverlap(result: OverlapCheckResponse) {
+  const lines: string[] = [];
+  if (result.overlaps.length === 0) {
+    lines.push("No strong overlap found in this selected doc yet.");
+  } else {
+    lines.push("Top overlaps:");
+    for (const overlap of result.overlaps) {
+      lines.push(
+        `- ${overlap.title} (score ${overlap.score.toFixed(2)}): ${overlap.reason}`
+      );
+    }
+  }
+
+  lines.push("");
+  lines.push(`Gap Insight: ${result.gapInsight.headline}`);
+  lines.push(result.gapInsight.opportunity);
+  lines.push(`Confidence: ${result.gapInsight.confidence.toFixed(2)}`);
+  overlapInsightsEl.textContent = lines.join("\n");
 }
 
 function renderDocOptions(docs: RecentDoc[]) {
@@ -143,6 +164,17 @@ async function onSummarizeAppend() {
   try {
     setStatus("Scraping research page...");
     const paperData = await scrapeFromActiveResearchTab();
+
+    setStatus("Checking overlap against saved papers...");
+    try {
+      const overlapResult = await api.checkOverlap({ targetDocId, paperData });
+      renderOverlap(overlapResult);
+    } catch (error) {
+      overlapInsightsEl.textContent =
+        error instanceof Error
+          ? `Overlap check failed: ${error.message}`
+          : "Overlap check failed. Continuing to append.";
+    }
 
     setStatus("Generating neuroscience summary and appending to doc...");
     const result = await api.summarizeAndAppend({

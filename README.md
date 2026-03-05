@@ -19,6 +19,9 @@ Core capabilities:
 - OpenAI Responses API integration
 - Google Docs creation and append workflows
 - Multi-source paper-to-Doc extension flow with neuroscience-specific summarization mode
+- Evidence Matrix generation in Google Sheets per source doc
+- Semantic overlap/gap insight before append
+- Synthesis draft generation from selected saved papers
 - CSRF protection and session handling
 
 ---
@@ -29,7 +32,7 @@ Core capabilities:
 
 - Node.js 20+
 - npm
-- Google Cloud project with Drive + Docs APIs enabled
+- Google Cloud project with Drive + Docs + Sheets APIs enabled
 - OpenAI API key
 - Chrome (for extension testing)
 
@@ -158,6 +161,14 @@ Then in Chrome:
 - `GET /api/google/folders`
 - `GET /api/google/pickerToken`
 - `GET /api/google/status`
+
+### Research
+
+- `POST /api/research/overlap-check`
+- `GET /api/research/papers`
+- `POST /api/research/evidence-matrix`
+- `GET /api/research/evidence-matrix`
+- `POST /api/research/synthesize`
 
 ### `POST /api/chat` payload modes
 

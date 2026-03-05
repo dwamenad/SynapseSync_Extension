@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type User = {
   id: string;
@@ -37,6 +37,24 @@ type IntegrationStatus = {
   error?: string;
 };
 
+type PaperEntrySummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  methodology: string | null;
+  sampleSize: string | null;
+  modality: string | null;
+  brainRegions: string | null;
+  gainVsLoss: string | null;
+};
+
+type EvidenceMatrixStatus = {
+  exists: boolean;
+  sheetId?: string;
+  sheetUrl?: string;
+  updatedAt?: string;
+};
+
 const CHAT_STORAGE_KEY = "gdca_chat_history_v1";
 const FOLDER_STORAGE_KEY = "gdca_folder_id_v1";
 
@@ -62,6 +80,23 @@ export default function DashboardClient() {
   const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus | null>(
     null
   );
+
+  const [paperEntries, setPaperEntries] = useState<PaperEntrySummary[]>([]);
+  const [paperEntriesLoading, setPaperEntriesLoading] = useState(false);
+  const [selectedPaperEntryIds, setSelectedPaperEntryIds] = useState<string[]>([]);
+
+  const [matrixStatus, setMatrixStatus] = useState<EvidenceMatrixStatus | null>(null);
+  const [matrixLoading, setMatrixLoading] = useState(false);
+  const [matrixActionLoading, setMatrixActionLoading] = useState(false);
+  const [matrixError, setMatrixError] = useState<string | null>(null);
+
+  const [synthesisMode, setSynthesisMode] = useState<"thematic" | "chronological">(
+    "thematic"
+  );
+  const [synthesisLoading, setSynthesisLoading] = useState(false);
+  const [synthesisPreview, setSynthesisPreview] = useState("");
+  const [synthesisError, setSynthesisError] = useState<string | null>(null);
+  const [synthesisDocUrl, setSynthesisDocUrl] = useState<string | null>(null);
 
   async function loadMe() {
     setBootLoading(true);
@@ -89,6 +124,15 @@ export default function DashboardClient() {
       setSelectedDocId(data.docs[0].id);
     }
     setRecentLoading(false);
+  }
+
+  async function loadIntegrationStatus() {
+    const res = await fetch("/api/google/status", { credentials: "include" });
+    if (!res.ok) {
+      return;
+    }
+    const data = await res.json();
+    setIntegrationStatus(data);
   }
 
   useEffect(() => {
@@ -122,15 +166,6 @@ export default function DashboardClient() {
     }
   }, []);
 
-  async function loadIntegrationStatus() {
-    const res = await fetch("/api/google/status", { credentials: "include" });
-    if (!res.ok) {
-      return;
-    }
-    const data = await res.json();
-    setIntegrationStatus(data);
-  }
-
   useEffect(() => {
     window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chat.slice(-20)));
   }, [chat]);
@@ -148,6 +183,160 @@ export default function DashboardClient() {
     const token = data.csrfToken || "";
     setCsrfToken(token);
     return token;
+  }
+
+  const selectedDoc = useMemo(
+    () => recentDocs.find((doc) => doc.id === selectedDocId) || null,
+    [recentDocs, selectedDocId]
+  );
+
+  useEffect(() => {
+    if (!selectedDoc?.documentId) {
+      setPaperEntries([]);
+      setSelectedPaperEntryIds([]);
+      setMatrixStatus(null);
+      setSynthesisPreview("");
+      setSynthesisDocUrl(null);
+      return;
+    }
+
+    void loadPaperEntries(selectedDoc.documentId);
+    void loadMatrixStatus(selectedDoc.documentId);
+  }, [selectedDoc?.documentId]);
+
+  async function loadPaperEntries(targetDocId: string) {
+    setPaperEntriesLoading(true);
+    try {
+      const res = await fetch(
+        `/api/research/papers?targetDocId=${encodeURIComponent(targetDocId)}`,
+        { credentials: "include" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load saved papers");
+      }
+
+      const papers = (data.papers || []) as PaperEntrySummary[];
+      setPaperEntries(papers);
+      setSelectedPaperEntryIds((current) =>
+        current.filter((id) => papers.some((paper) => paper.id === id))
+      );
+    } catch (err) {
+      setPaperEntries([]);
+      setSelectedPaperEntryIds([]);
+      setError(err instanceof Error ? err.message : "Failed to load saved papers");
+    } finally {
+      setPaperEntriesLoading(false);
+    }
+  }
+
+  async function loadMatrixStatus(targetDocId: string) {
+    setMatrixLoading(true);
+    setMatrixError(null);
+    try {
+      const res = await fetch(
+        `/api/research/evidence-matrix?targetDocId=${encodeURIComponent(targetDocId)}`,
+        { credentials: "include" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load evidence matrix status");
+      }
+      setMatrixStatus(data);
+    } catch (err) {
+      setMatrixStatus(null);
+      setMatrixError(
+        err instanceof Error ? err.message : "Failed to load evidence matrix status"
+      );
+    } finally {
+      setMatrixLoading(false);
+    }
+  }
+
+  async function generateOrRefreshMatrix() {
+    if (!selectedDoc?.documentId) {
+      return;
+    }
+
+    setMatrixActionLoading(true);
+    setMatrixError(null);
+    try {
+      const token = csrfToken || (await loadCsrf());
+      const res = await fetch("/api/research/evidence-matrix", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": token
+        },
+        body: JSON.stringify({ targetDocId: selectedDoc.documentId })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate evidence matrix");
+      }
+
+      setMatrixStatus({
+        exists: true,
+        sheetId: data.sheetId,
+        sheetUrl: data.sheetUrl,
+        updatedAt: data.updatedAt
+      });
+      setStatusText("Evidence Matrix refreshed successfully.");
+    } catch (err) {
+      setMatrixError(err instanceof Error ? err.message : "Evidence Matrix generation failed");
+    } finally {
+      setMatrixActionLoading(false);
+    }
+  }
+
+  function togglePaperSelection(id: string) {
+    setSelectedPaperEntryIds((current) => {
+      if (current.includes(id)) {
+        return current.filter((item) => item !== id);
+      }
+      if (current.length >= 10) {
+        return current;
+      }
+      return [...current, id];
+    });
+  }
+
+  async function synthesizeSection() {
+    if (!selectedDoc?.documentId) {
+      return;
+    }
+
+    setSynthesisError(null);
+    setSynthesisLoading(true);
+    try {
+      const token = csrfToken || (await loadCsrf());
+      const res = await fetch("/api/research/synthesize", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": token
+        },
+        body: JSON.stringify({
+          targetDocId: selectedDoc.documentId,
+          paperEntryIds: selectedPaperEntryIds,
+          mode: synthesisMode
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Synthesis failed");
+      }
+
+      setSynthesisPreview(data.synthesisText || "");
+      setSynthesisDocUrl(data.appendedDoc?.documentUrl || null);
+      setStatusText("Synthesis draft appended to selected document.");
+    } catch (err) {
+      setSynthesisError(err instanceof Error ? err.message : "Synthesis failed");
+    } finally {
+      setSynthesisLoading(false);
+    }
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -217,8 +406,6 @@ export default function DashboardClient() {
       )
     );
   }
-
-  const selectedDoc = recentDocs.find((doc) => doc.id === selectedDocId) || null;
 
   async function onSignOut() {
     const token = csrfToken || (await loadCsrf());
@@ -339,6 +526,9 @@ export default function DashboardClient() {
       setPickerLoading(false);
     }
   }
+
+  const selectedCount = selectedPaperEntryIds.length;
+  const canSynthesize = selectedCount >= 5 && selectedCount <= 10 && !!selectedDoc;
 
   return (
     <div className="grid two">
@@ -465,13 +655,24 @@ export default function DashboardClient() {
         </ul>
 
         {selectedDoc ? (
-          <div style={{ marginTop: "0.8rem", borderTop: "1px solid var(--border)", paddingTop: "0.8rem" }}>
+          <div
+            style={{
+              marginTop: "0.8rem",
+              borderTop: "1px solid var(--border)",
+              paddingTop: "0.8rem"
+            }}
+          >
             <h4 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Selected Doc</h4>
             <p className="meta" style={{ marginBottom: "0.5rem" }}>
               {selectedDoc.title}
             </p>
             <div className="row">
-              <a className="button secondary" href={selectedDoc.documentUrl} target="_blank" rel="noreferrer">
+              <a
+                className="button secondary"
+                href={selectedDoc.documentUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
                 Open
               </a>
               <button
@@ -483,6 +684,128 @@ export default function DashboardClient() {
               >
                 Copy Link
               </button>
+            </div>
+
+            <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "0.8rem" }}>
+              <h4 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Evidence Matrix</h4>
+              <button
+                className="button primary"
+                type="button"
+                onClick={() => void generateOrRefreshMatrix()}
+                disabled={matrixActionLoading || !selectedDoc}
+              >
+                {matrixActionLoading ? "Working..." : "Generate / Refresh Evidence Matrix"}
+              </button>
+              {matrixLoading ? <p className="meta">Checking matrix status...</p> : null}
+              {matrixStatus?.exists && matrixStatus.sheetUrl ? (
+                <p className="meta" style={{ marginTop: "0.5rem" }}>
+                  <a href={matrixStatus.sheetUrl} target="_blank" rel="noreferrer">
+                    Open Matrix
+                  </a>
+                  {matrixStatus.updatedAt
+                    ? ` · Updated ${new Date(matrixStatus.updatedAt).toLocaleString()}`
+                    : ""}
+                </p>
+              ) : (
+                <p className="meta" style={{ marginTop: "0.5rem" }}>
+                  No matrix generated yet.
+                </p>
+              )}
+              {matrixError ? (
+                <p style={{ color: "#b10f2e", marginTop: "0.5rem" }}>{matrixError}</p>
+              ) : null}
+            </div>
+
+            <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "0.8rem" }}>
+              <h4 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Saved Papers</h4>
+              <p className="meta">Select 5–10 papers for synthesis ({selectedCount}/10).</p>
+              <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem" }}>
+                {paperEntriesLoading ? <p className="meta">Loading papers...</p> : null}
+                {!paperEntriesLoading && paperEntries.length === 0 ? (
+                  <p className="meta">No saved papers yet. Append papers first.</p>
+                ) : null}
+                {paperEntries.map((paper) => (
+                  <label key={paper.id} style={{ display: "block", marginBottom: "0.55rem" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedPaperEntryIds.includes(paper.id)}
+                      onChange={() => togglePaperSelection(paper.id)}
+                      disabled={
+                        !selectedPaperEntryIds.includes(paper.id) &&
+                        selectedPaperEntryIds.length >= 10
+                      }
+                      style={{ marginRight: "0.4rem" }}
+                    />
+                    <strong>{paper.title}</strong>
+                    <div className="meta">
+                      {paper.sampleSize || "sample n/a"} · {paper.modality || "modality n/a"}
+                    </div>
+                    <div className="meta">{paper.gainVsLoss || "gain/loss n/a"}</div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "0.8rem" }}>
+              <h4 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Synthesis Draft</h4>
+              <div className="row" style={{ alignItems: "center", marginBottom: "0.5rem" }}>
+                <label style={{ display: "grid", gap: "0.2rem", flex: 1 }}>
+                  Mode
+                  <select
+                    value={synthesisMode}
+                    onChange={(event) =>
+                      setSynthesisMode(event.target.value as "thematic" | "chronological")
+                    }
+                  >
+                    <option value="thematic">Thematic</option>
+                    <option value="chronological">Chronological</option>
+                  </select>
+                </label>
+              </div>
+
+              <button
+                className="button primary"
+                type="button"
+                disabled={!canSynthesize || synthesisLoading}
+                onClick={() => void synthesizeSection()}
+              >
+                {synthesisLoading ? "Synthesizing..." : "Synthesize Section"}
+              </button>
+
+              {!canSynthesize ? (
+                <p className="meta" style={{ marginTop: "0.5rem" }}>
+                  Choose between 5 and 10 papers to enable synthesis.
+                </p>
+              ) : null}
+
+              {synthesisDocUrl ? (
+                <p className="meta" style={{ marginTop: "0.5rem" }}>
+                  <a href={synthesisDocUrl} target="_blank" rel="noreferrer">
+                    Open appended synthesis in Google Doc
+                  </a>
+                </p>
+              ) : null}
+
+              {synthesisPreview ? (
+                <pre
+                  style={{
+                    marginTop: "0.6rem",
+                    whiteSpace: "pre-wrap",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    padding: "0.55rem",
+                    background: "#f8fbff",
+                    maxHeight: 220,
+                    overflow: "auto"
+                  }}
+                >
+                  {synthesisPreview.slice(0, 1200)}
+                </pre>
+              ) : null}
+
+              {synthesisError ? (
+                <p style={{ color: "#b10f2e", marginTop: "0.5rem" }}>{synthesisError}</p>
+              ) : null}
             </div>
           </div>
         ) : null}

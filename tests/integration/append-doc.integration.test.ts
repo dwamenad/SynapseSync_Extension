@@ -5,6 +5,9 @@ import { prisma } from "../../apps/api/src/lib/prisma";
 
 describe("append doc API route", () => {
   beforeEach(async () => {
+    await prisma.synthesisRun.deleteMany();
+    await prisma.evidenceMatrix.deleteMany();
+    await prisma.paperEntry.deleteMany();
     await prisma.recentDoc.deleteMany();
     await prisma.session.deleteMany();
     await prisma.oAuthToken.deleteMany();

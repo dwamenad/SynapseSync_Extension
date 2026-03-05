@@ -27,3 +27,21 @@ export type ExtensionChatPayload = {
   targetDocId: string;
   neuroMode: boolean;
 };
+
+export type OverlapItem = {
+  paperEntryId: string;
+  title: string;
+  score: number;
+  reason: string;
+};
+
+export type GapInsight = {
+  headline: string;
+  opportunity: string;
+  confidence: number;
+};
+
+export type OverlapCheckResponse = {
+  overlaps: OverlapItem[];
+  gapInsight: GapInsight;
+};

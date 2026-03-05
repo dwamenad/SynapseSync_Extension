@@ -5,6 +5,9 @@ import { prisma } from "../../apps/api/src/lib/prisma";
 
 describe("extension chat payload", () => {
   beforeEach(async () => {
+    await prisma.synthesisRun.deleteMany();
+    await prisma.evidenceMatrix.deleteMany();
+    await prisma.paperEntry.deleteMany();
     await prisma.recentDoc.deleteMany();
     await prisma.session.deleteMany();
     await prisma.oAuthToken.deleteMany();
@@ -56,6 +59,13 @@ describe("extension chat payload", () => {
     );
     expect(typeof response.body.summary).toBe("string");
     expect(response.body.summary).toContain("## Adaptive control in cognitive effort");
+
+    const createdEntries = await prisma.paperEntry.findMany();
+    expect(createdEntries).toHaveLength(1);
+    expect(createdEntries[0].sourceDocumentId).toBe(targetDocId);
+    expect(createdEntries[0].title).toBe("Adaptive control in cognitive effort");
+    expect(createdEntries[0].abstract).toContain("reward contingencies");
+    expect(createdEntries[0].methodology || "").toContain("reversal-learning");
   });
 
   it("rejects invalid extension payloads", async () => {

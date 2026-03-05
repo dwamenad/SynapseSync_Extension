@@ -47,6 +47,19 @@ var SynapseSyncApi = class {
     });
     return parseJsonResponse(res);
   }
+  async checkOverlap(payload) {
+    const csrfToken = await this.getCsrfToken();
+    const res = await fetch(`${this.baseUrl}/api/research/overlap-check`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken
+      },
+      body: JSON.stringify(payload)
+    });
+    return parseJsonResponse(res);
+  }
 };
 
 // extension/src/sidepanel.ts
@@ -66,6 +79,7 @@ var openLoginButton = requireElement("#openLogin");
 var docSelect = requireElement("#docSelect");
 var summarizeAppendButton = requireElement("#summarizeAppend");
 var neuroModeToggle = requireElement("#neuroMode");
+var overlapInsightsEl = requireElement("#overlapInsights");
 var statusEl = requireElement("#status");
 var api = new SynapseSyncApi(DEFAULT_API_BASE);
 function setStatus(message) {
@@ -74,6 +88,24 @@ function setStatus(message) {
 function setWorking(isWorking) {
   summarizeAppendButton.disabled = isWorking;
   refreshDocsButton.disabled = isWorking;
+}
+function renderOverlap(result) {
+  const lines = [];
+  if (result.overlaps.length === 0) {
+    lines.push("No strong overlap found in this selected doc yet.");
+  } else {
+    lines.push("Top overlaps:");
+    for (const overlap of result.overlaps) {
+      lines.push(
+        `- ${overlap.title} (score ${overlap.score.toFixed(2)}): ${overlap.reason}`
+      );
+    }
+  }
+  lines.push("");
+  lines.push(`Gap Insight: ${result.gapInsight.headline}`);
+  lines.push(result.gapInsight.opportunity);
+  lines.push(`Confidence: ${result.gapInsight.confidence.toFixed(2)}`);
+  overlapInsightsEl.textContent = lines.join("\n");
 }
 function renderDocOptions(docs) {
   docSelect.innerHTML = "";
@@ -170,6 +202,13 @@ async function onSummarizeAppend() {
   try {
     setStatus("Scraping research page...");
     const paperData = await scrapeFromActiveResearchTab();
+    setStatus("Checking overlap against saved papers...");
+    try {
+      const overlapResult = await api.checkOverlap({ targetDocId, paperData });
+      renderOverlap(overlapResult);
+    } catch (error) {
+      overlapInsightsEl.textContent = error instanceof Error ? `Overlap check failed: ${error.message}` : "Overlap check failed. Continuing to append.";
+    }
     setStatus("Generating neuroscience summary and appending to doc...");
     const result = await api.summarizeAndAppend({
       paperData,

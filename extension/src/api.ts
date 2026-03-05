@@ -1,4 +1,9 @@
-import type { ExtensionChatPayload, RecentDoc } from "./types";
+import type {
+  ExtensionChatPayload,
+  OverlapCheckResponse,
+  PaperData,
+  RecentDoc
+} from "./types";
 
 async function parseJsonResponse<T>(res: Response): Promise<T> {
   const data = (await res.json()) as T;
@@ -61,5 +66,20 @@ export class SynapseSyncApi {
       summary?: string;
       appendedDoc?: { documentId: string; documentUrl: string };
     }>(res);
+  }
+
+  async checkOverlap(payload: { targetDocId: string; paperData: PaperData }) {
+    const csrfToken = await this.getCsrfToken();
+    const res = await fetch(`${this.baseUrl}/api/research/overlap-check`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken
+      },
+      body: JSON.stringify(payload)
+    });
+
+    return parseJsonResponse<OverlapCheckResponse>(res);
   }
 }
