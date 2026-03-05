@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit-and-integration:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      GOOGLE_CLIENT_ID: test
+      GOOGLE_CLIENT_SECRET: test
+      GOOGLE_REDIRECT_URI: http://localhost:3000/auth/google/callback
+      OPENAI_API_KEY: test
+      TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
+      DATABASE_URL: file:./ci.db
+      SESSION_COOKIE_SECRET: ci-secret
+      APP_BASE_URL: http://localhost:3000
+      MOCK_AUTH: true
+      MOCK_GOOGLE_APIS: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate dev --name ci_init
+      - run: npm run prisma:generate
+      - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      GOOGLE_CLIENT_ID: test
+      GOOGLE_CLIENT_SECRET: test
+      GOOGLE_REDIRECT_URI: http://localhost:3000/auth/google/callback
+      OPENAI_API_KEY: test
+      TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
+      DATABASE_URL: file:./ci-e2e.db
+      SESSION_COOKIE_SECRET: ci-secret
+      APP_BASE_URL: http://localhost:3000
+      MOCK_AUTH: true
+      MOCK_GOOGLE_APIS: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate dev --name ci_e2e_init
+      - run: npm run prisma:generate
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
