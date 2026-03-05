@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "SynapseSync",
+  "version": "0.1.0",
+  "description": "Scrape PubMed abstracts and append AI summaries to Google Docs.",
+  "permissions": ["activeTab", "storage", "scripting", "sidePanel", "tabs"],
+  "host_permissions": [
+    "https://pubmed.ncbi.nlm.nih.gov/*",
+    "http://localhost:4000/*"
+  ],
+  "action": {
+    "default_title": "SynapseSync"
+  },
+  "background": {
+    "service_worker": "dist/background.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://pubmed.ncbi.nlm.nih.gov/*"],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
