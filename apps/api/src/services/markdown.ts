@@ -15,6 +15,12 @@ type HeadingStyle = {
   namedStyleType: "HEADING_1" | "HEADING_2";
 };
 
+type ListStyle = {
+  start: number;
+  end: number;
+  bulletPreset: "BULLET_DISC_CIRCLE_SQUARE" | "NUMBERED_DECIMAL_ALPHA_ROMAN";
+};
+
 type ParsedInline = {
   text: string;
   styles: InlineStyle[];
@@ -133,11 +139,13 @@ export function markdownToDocsRequests(markdown: string): {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const inlineStyles: InlineStyle[] = [];
   const headings: HeadingStyle[] = [];
+  const lists: ListStyle[] = [];
 
   let offset = 0;
   const parsedLines = lines.map((rawLine) => {
     let line = rawLine;
     let headingType: HeadingStyle["namedStyleType"] | undefined;
+    let listBulletPreset: ListStyle["bulletPreset"] | undefined;
 
     if (line.startsWith("## ")) {
       headingType = "HEADING_2";
@@ -145,6 +153,12 @@ export function markdownToDocsRequests(markdown: string): {
     } else if (line.startsWith("# ")) {
       headingType = "HEADING_1";
       line = line.slice(2);
+    } else if (/^\s*[-*]\s+/.test(line)) {
+      listBulletPreset = "BULLET_DISC_CIRCLE_SQUARE";
+      line = line.replace(/^\s*[-*]\s+/, "");
+    } else if (/^\s*\d+\.\s+/.test(line)) {
+      listBulletPreset = "NUMBERED_DECIMAL_ALPHA_ROMAN";
+      line = line.replace(/^\s*\d+\.\s+/, "");
     }
 
     const { text, styles } = parseInlineMarkdown(line);
@@ -167,6 +181,14 @@ export function markdownToDocsRequests(markdown: string): {
       });
     }
 
+    if (listBulletPreset && text.length > 0) {
+      lists.push({
+        start: offset,
+        end: offset + text.length + 1,
+        bulletPreset: listBulletPreset
+      });
+    }
+
     offset += text.length + 1;
     return text;
   });
@@ -185,6 +207,18 @@ export function markdownToDocsRequests(markdown: string): {
           namedStyleType: heading.namedStyleType
         },
         fields: "namedStyleType"
+      }
+    });
+  }
+
+  for (const list of lists) {
+    requests.push({
+      createParagraphBullets: {
+        range: {
+          startIndex: 1 + list.start,
+          endIndex: 1 + list.end
+        },
+        bulletPreset: list.bulletPreset
       }
     });
   }
