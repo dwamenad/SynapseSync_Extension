@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { CodeChallengeMethod } from "google-auth-library";
 import { env } from "../config/env";
 import { hasValidCsrf } from "../lib/csrf";
 import { createOAuthClient, GOOGLE_SCOPES } from "../lib/google";
@@ -55,7 +56,7 @@ router.get("/google", async (_req, res) => {
     scope: GOOGLE_SCOPES,
     state,
     code_challenge: challenge,
-    code_challenge_method: "S256"
+    code_challenge_method: CodeChallengeMethod.S256
   });
 
   res.redirect(url);
@@ -98,26 +99,29 @@ router.get("/google/callback", async (req, res) => {
     });
     const payload = ticket.getPayload();
 
-    if (!payload.sub || !payload.email) {
+    if (!payload || !payload.sub || !payload.email) {
       return res.status(400).send("Unable to identify user.");
     }
+    const profile = payload;
+    const profileSub = profile.sub as string;
+    const profileEmail = profile.email as string;
 
     const user = await prisma.user.upsert({
-      where: { googleSub: payload.sub },
+      where: { googleSub: profileSub },
       create: {
-        googleSub: payload.sub,
-        email: payload.email,
-        name: payload.name ?? null,
-        picture: payload.picture ?? null
+        googleSub: profileSub,
+        email: profileEmail,
+        name: profile.name ?? null,
+        picture: profile.picture ?? null
       },
       update: {
-        email: payload.email,
-        name: payload.name ?? null,
-        picture: payload.picture ?? null
+        email: profileEmail,
+        name: profile.name ?? null,
+        picture: profile.picture ?? null
       }
     });
 
-    await prisma.oauthToken.upsert({
+    await prisma.oAuthToken.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,

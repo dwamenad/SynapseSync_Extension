@@ -7,7 +7,7 @@ describe("chat API route", () => {
   beforeEach(async () => {
     await prisma.recentDoc.deleteMany();
     await prisma.session.deleteMany();
-    await prisma.oauthToken.deleteMany();
+    await prisma.oAuthToken.deleteMany();
     await prisma.user.deleteMany();
   });
 

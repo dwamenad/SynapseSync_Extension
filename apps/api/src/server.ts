@@ -4,9 +4,15 @@ import { createApp } from "./app";
 
 const app = createApp();
 
-void cleanupExpiredSessions();
+function runCleanupSafe() {
+  void cleanupExpiredSessions().catch(() => {
+    // Startup may occur before migrations in local/test flows.
+  });
+}
+
+runCleanupSafe();
 setInterval(() => {
-  void cleanupExpiredSessions();
+  runCleanupSafe();
 }, 1000 * 60 * 60);
 
 app.listen(env.PORT, () => {

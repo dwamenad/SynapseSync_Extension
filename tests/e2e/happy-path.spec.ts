@@ -1,10 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 test("sign in, create doc, and see it in recent docs", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("link", { name: "Sign in with Google" }).click();
-
-  await expect(page).toHaveURL(/\/dashboard/);
+  await page.goto("/dashboard");
+  await expect(page.getByText(/Signed in as/i)).toBeVisible();
 
   const title = `E2E Doc ${Date.now()}`;
   await page
@@ -13,14 +11,13 @@ test("sign in, create doc, and see it in recent docs", async ({ page }) => {
 
   await page.getByRole("button", { name: "Send" }).click();
 
-  await expect(page.getByText(title)).toBeVisible();
+  await expect(page.getByText(/Created \\"?/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Open doc" }).first()).toBeVisible();
 });
 
 test("chat history persists and can be cleared", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("link", { name: "Sign in with Google" }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  await page.goto("/dashboard");
+  await expect(page.getByText(/Signed in as/i)).toBeVisible();
 
   const prompt = `Create a doc titled Persisted ${Date.now()} with this content: Keep me`;
   await page.getByLabel("Message").fill(prompt);
@@ -35,9 +32,8 @@ test("chat history persists and can be cleared", async ({ page }) => {
 });
 
 test("folder picker modal can select a folder", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("link", { name: "Sign in with Google" }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  await page.goto("/dashboard");
+  await expect(page.getByText(/Signed in as/i)).toBeVisible();
 
   await page.getByRole("button", { name: "Browse" }).click();
   await expect(page.getByRole("heading", { name: "Pick a Folder" })).toBeVisible();

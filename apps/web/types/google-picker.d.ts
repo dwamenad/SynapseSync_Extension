@@ -1,9 +1,9 @@
 declare global {
   interface Window {
-    gapi: {
+    gapi?: {
       load: (name: string, callback: () => void) => void;
     };
-    google: {
+    google?: {
       picker: {
         Action: {
           PICKED: string;

@@ -279,8 +279,13 @@ export default function DashboardClient() {
       document.body.appendChild(script);
     });
 
+    const gapi = window.gapi;
+    if (!gapi?.load) {
+      throw new Error("Google API loader is unavailable");
+    }
+
     await new Promise<void>((resolve) => {
-      window.gapi.load("picker", () => resolve());
+      gapi.load("picker", () => resolve());
     });
   }
 
@@ -302,19 +307,21 @@ export default function DashboardClient() {
       }
 
       await loadGooglePickerScripts();
+      const google = window.google;
+      if (!google?.picker) {
+        throw new Error("Google Picker API is unavailable");
+      }
 
-      const view = new window.google.picker.DocsView(
-        window.google.picker.ViewId.FOLDERS
-      );
+      const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS);
       view.setIncludeFolders(true);
       view.setSelectFolderEnabled(true);
 
-      const picker = new window.google.picker.PickerBuilder()
+      const picker = new google.picker.PickerBuilder()
         .setDeveloperKey(pickerApiKey)
         .setOAuthToken(tokenData.accessToken as string)
         .addView(view)
         .setCallback((data: any) => {
-          if (data.action !== window.google.picker.Action.PICKED) {
+          if (data.action !== google.picker.Action.PICKED) {
             return;
           }
 

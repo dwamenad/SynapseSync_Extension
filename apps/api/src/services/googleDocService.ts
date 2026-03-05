@@ -1,5 +1,5 @@
 import type { OAuth2Client } from "google-auth-library";
-import { google } from "googleapis";
+import { docs_v1, google } from "googleapis";
 import { z } from "zod";
 import { env } from "../config/env";
 import { decryptJson, encryptJson } from "../lib/crypto";
@@ -39,7 +39,7 @@ async function withUserGoogleClient<T>(
     docs: ReturnType<typeof google.docs>;
   }) => Promise<T>
 ): Promise<T> {
-  const tokenRow = await prisma.oauthToken.findUnique({ where: { userId } });
+  const tokenRow = await prisma.oAuthToken.findUnique({ where: { userId } });
   if (!tokenRow) {
     throw new Error("Missing OAuth token. Please sign in again.");
   }
@@ -54,7 +54,7 @@ async function withUserGoogleClient<T>(
   const result = await run({ oauth2, drive, docs });
 
   const nextCreds = oauth2.credentials;
-  await prisma.oauthToken.update({
+  await prisma.oAuthToken.update({
     where: { userId },
     data: {
       encryptedPayload: encryptJson(nextCreds),
@@ -214,9 +214,7 @@ export async function createGoogleDocWithClients(
   }
 
   let text = args.content;
-  let formatRequests: NonNullable<
-    Parameters<typeof docs.documents.batchUpdate>[0]["requestBody"]
-  >["requests"] = [];
+  let formatRequests: docs_v1.Schema$Request[] = [];
 
   if (args.contentFormat === "markdown") {
     const converted = markdownToDocsRequests(args.content);
