@@ -21,4 +21,59 @@ describe("markdownToDocsRequests", () => {
     expect(hasBold).toBe(true);
     expect(hasItalic).toBe(true);
   });
+
+  it("converts markdown links and inline code", () => {
+    const result = markdownToDocsRequests(
+      "Read [docs](https://example.com) and run `npm test`."
+    );
+
+    expect(result.text).toBe("Read docs and run npm test.");
+    const hasLink = result.requests.some(
+      (req) => req.updateTextStyle?.textStyle?.link?.url === "https://example.com"
+    );
+    const hasCodeStyle = result.requests.some(
+      (req) =>
+        req.updateTextStyle?.textStyle?.weightedFontFamily?.fontFamily === "Courier New"
+    );
+
+    expect(hasLink).toBe(true);
+    expect(hasCodeStyle).toBe(true);
+  });
+
+  it("converts markdown lists into paragraph bullets", () => {
+    const result = markdownToDocsRequests("- first\n- second\n1. one\n2. two");
+    expect(result.text).toBe("first\nsecond\none\ntwo");
+
+    const bulletCount = result.requests.filter(
+      (req) =>
+        req.createParagraphBullets?.bulletPreset === "BULLET_DISC_CIRCLE_SQUARE"
+    ).length;
+    const numberedCount = result.requests.filter(
+      (req) =>
+        req.createParagraphBullets?.bulletPreset ===
+        "NUMBERED_DECIMAL_ALPHA_ROMAN"
+    ).length;
+
+    expect(bulletCount).toBe(2);
+    expect(numberedCount).toBe(2);
+  });
+
+  it("removes code fences and keeps block content", () => {
+    const result = markdownToDocsRequests("```js\nconst a = 1;\n```");
+    expect(result.text).toBe("const a = 1;");
+
+    const hasCodeStyle = result.requests.some(
+      (req) =>
+        req.updateTextStyle?.textStyle?.weightedFontFamily?.fontFamily === "Courier New"
+    );
+    expect(hasCodeStyle).toBe(true);
+  });
+
+  it("renders markdown table rows as readable lines", () => {
+    const result = markdownToDocsRequests(
+      "| Name | Score |\n| --- | --- |\n| A | 10 |\n| B | 8 |"
+    );
+
+    expect(result.text).toBe("Name | Score\nA | 10\nB | 8");
+  });
 });
