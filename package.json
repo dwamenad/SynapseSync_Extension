@@ -18,7 +18,9 @@
     "test:e2e": "playwright test",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:generate:postgres": "prisma generate --schema prisma/schema.postgres.prisma",
+    "prisma:migrate:postgres": "prisma migrate dev --schema prisma/schema.postgres.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
