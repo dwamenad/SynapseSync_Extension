@@ -148,6 +148,26 @@ export async function listDriveFoldersForUser(
   });
 }
 
+export async function getGoogleDriveAccessTokenForUser(userId: string): Promise<string> {
+  if (env.MOCK_GOOGLE_APIS) {
+    return "mock-drive-access-token";
+  }
+
+  return withUserGoogleClient(userId, async ({ oauth2 }) => {
+    const existing = oauth2.credentials.access_token;
+    if (existing) {
+      return existing;
+    }
+
+    const tokenResponse = await oauth2.getAccessToken();
+    if (!tokenResponse.token) {
+      throw new Error("No Google access token available");
+    }
+
+    return tokenResponse.token;
+  });
+}
+
 export async function createGoogleDocWithClients(
   drive: ReturnType<typeof google.drive>,
   docs: ReturnType<typeof google.docs>,

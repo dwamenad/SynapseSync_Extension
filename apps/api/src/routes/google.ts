@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireCsrf } from "../middleware/csrf";
 import {
   createGoogleDocForUser,
+  getGoogleDriveAccessTokenForUser,
   listDriveFoldersForUser
 } from "../services/googleDocService";
 import { prisma } from "../lib/prisma";
@@ -61,6 +62,23 @@ router.get("/folders", async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to list folders"
+    });
+  }
+});
+
+router.get("/pickerToken", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const accessToken = await getGoogleDriveAccessTokenForUser(userId);
+    return res.status(200).json({ accessToken });
+  } catch (error) {
+    return res.status(500).json({
+      error:
+        error instanceof Error ? error.message : "Failed to create picker token"
     });
   }
 });
