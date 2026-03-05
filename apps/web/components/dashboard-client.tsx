@@ -23,6 +23,11 @@ type ChatMessage = {
   text: string;
 };
 
+type FolderOption = {
+  id: string;
+  name: string;
+};
+
 export default function DashboardClient() {
   const [user, setUser] = useState<User | null>(null);
   const [message, setMessage] = useState("");
@@ -32,6 +37,10 @@ export default function DashboardClient() {
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [csrfToken, setCsrfToken] = useState<string>("");
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const [folderQuery, setFolderQuery] = useState("");
+  const [folderOptions, setFolderOptions] = useState<FolderOption[]>([]);
+  const [folderLoading, setFolderLoading] = useState(false);
 
   async function loadMe() {
     const res = await fetch("/api/me", { credentials: "include" });
@@ -124,6 +133,32 @@ export default function DashboardClient() {
     window.location.href = "/";
   }
 
+  async function searchFolders(query: string) {
+    setFolderLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (query.trim()) {
+        params.set("query", query.trim());
+      }
+      const res = await fetch(`/api/google/folders?${params.toString()}`, {
+        credentials: "include"
+      });
+      if (!res.ok) {
+        return;
+      }
+      const data = await res.json();
+      setFolderOptions(data.folders || []);
+    } finally {
+      setFolderLoading(false);
+    }
+  }
+
+  async function openFolderPicker() {
+    setFolderPickerOpen(true);
+    setFolderQuery("");
+    await searchFolders("");
+  }
+
   return (
     <div className="grid two">
       <section className="card">
@@ -154,11 +189,21 @@ export default function DashboardClient() {
         <form onSubmit={onSubmit} className="grid">
           <label>
             Folder ID (optional)
-            <input
-              value={folderId}
-              onChange={(e) => setFolderId(e.target.value)}
-              placeholder="Paste Google Drive folder ID"
-            />
+            <div className="row">
+              <input
+                value={folderId}
+                onChange={(e) => setFolderId(e.target.value)}
+                placeholder="Paste Google Drive folder ID"
+              />
+              <button
+                className="button secondary"
+                type="button"
+                onClick={openFolderPicker}
+                disabled={!user}
+              >
+                Browse
+              </button>
+            </div>
           </label>
 
           <label>
@@ -192,6 +237,63 @@ export default function DashboardClient() {
           ))}
         </ul>
       </aside>
+
+      {folderPickerOpen ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <h3 style={{ marginBottom: 0 }}>Pick a Folder</h3>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => setFolderPickerOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="row">
+              <input
+                value={folderQuery}
+                onChange={(e) => setFolderQuery(e.target.value)}
+                placeholder="Search folders"
+              />
+              <button
+                className="button primary"
+                type="button"
+                onClick={() => void searchFolders(folderQuery)}
+              >
+                Search
+              </button>
+            </div>
+
+            <ul className="doc-list" style={{ marginTop: "0.5rem", maxHeight: 260, overflow: "auto" }}>
+              {folderLoading ? <li className="meta">Loading...</li> : null}
+              {!folderLoading && folderOptions.length === 0 ? (
+                <li className="meta">No folders found.</li>
+              ) : null}
+              {folderOptions.map((folder) => (
+                <li key={folder.id}>
+                  <div style={{ fontWeight: 600 }}>{folder.name}</div>
+                  <p className="meta" style={{ marginBottom: "0.5rem" }}>
+                    {folder.id}
+                  </p>
+                  <button
+                    className="button primary"
+                    type="button"
+                    onClick={() => {
+                      setFolderId(folder.id);
+                      setFolderPickerOpen(false);
+                    }}
+                  >
+                    Select
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

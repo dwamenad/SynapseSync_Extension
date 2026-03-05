@@ -130,6 +130,24 @@ textarea {
   background: #fcfdff;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 16, 31, 0.48);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.modal-card {
+  width: min(680px, 100%);
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 24px 60px rgba(5, 18, 47, 0.4);
+}
+
 h1,
 h2,
 h3,
