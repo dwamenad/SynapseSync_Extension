@@ -1,177 +1,311 @@
-# Google Docs Chat App
+# SynapseSync
 
-Full-stack TypeScript app where a user signs in with Google, chats with an AI assistant, and creates Google Docs in their Drive (optionally in a chosen folder) with formatted content.
+**Research-to-Doc pipeline for Neuroscience PhDs**  
+Scrape PubMed abstracts from Chrome, generate a structured neuroscience literature summary, and append it into a selected Google Doc.
 
-## Stack
+---
 
-- Frontend: Next.js (TypeScript)
-- Backend: Express + Node.js (TypeScript)
-- Auth: Google OAuth 2.0 Authorization Code + PKCE
-- Google APIs: Drive API v3 + Docs API v1
-- AI: OpenAI Responses API + strict function-calling schema
-- Data: Prisma (SQLite local, Postgres-ready schema included)
+SynapseSync combines:
 
-## What this app now supports
+- **Next.js dashboard** for chat and document management
+- **Express/TypeScript backend** for OAuth, AI orchestration, and Google Docs updates
+- **Chrome Extension (Manifest V3)** side panel for PubMed scraping + one-click append
+- **Prisma data layer** (SQLite local, Postgres-ready schema included)
 
-- Google OAuth login with offline access and token refresh
-- Encrypted OAuth token storage at rest (AES-256-GCM)
-- CSRF protection for mutating endpoints (`/api/chat`, `/api/google/createDoc`, `/auth/logout`)
-- Rolling session refresh + expired session cleanup
-- Chat -> tool-calling flow to create docs
-- Fallback intent parser when model tool call is missing
-- Create Google Docs + write content + optional sharing
-- Richer markdown conversion (headings, bold/italic, links, inline code, lists, fenced code blocks, table rows)
-- Recent docs panel with selection and quick actions
-- Folder selection options:
-  - manual folder ID
-  - in-app searchable folder modal
-  - optional Google Drive Picker integration
-- Integration status indicator (mock vs real)
-- Unit, integration, and E2E test coverage
-- CI pipeline via GitHub Actions
-- Dockerfiles and docker-compose setup
+Core capabilities:
 
-## Required environment variables
+- Google OAuth 2.0 login (Authorization Code + PKCE)
+- Secure token encryption at rest (AES-256-GCM)
+- OpenAI Responses API integration
+- Google Docs creation and append workflows
+- PubMed-to-Doc extension flow with neuroscience-specific summarization mode
+- CSRF protection and session handling
 
-Copy `.env.example` to `.env`.
+---
 
-Required for real mode:
+## Quick Start
+
+### Prerequisites
+
+- Node.js 20+
+- npm
+- Google Cloud project with Drive + Docs APIs enabled
+- OpenAI API key
+- Chrome (for extension testing)
+
+### Step 1: Install
+
+```bash
+npm install
+```
+
+### Step 2: Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Set required values in `.env`:
 
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_REDIRECT_URI`
+- `GOOGLE_REDIRECT_URI` (usually `http://localhost:3000/auth/google/callback`)
 - `OPENAI_API_KEY`
-- `TOKEN_ENCRYPTION_KEY` (must decode to 32 bytes; hex/base64/raw 32-byte supported)
+- `TOKEN_ENCRYPTION_KEY`
 - `DATABASE_URL`
 - `SESSION_COOKIE_SECRET`
 - `APP_BASE_URL`
 
-Optional:
+For extension CORS in production, set:
 
-- `MOCK_AUTH` (`true`/`false`)
-- `MOCK_GOOGLE_APIS` (`true`/`false`)
-- `NEXT_PUBLIC_GOOGLE_API_KEY` (required only for Google Drive Picker button)
+- `CHROME_EXTENSION_ORIGINS=chrome-extension://<YOUR_EXTENSION_ID>`
 
-## Google Cloud setup
-
-1. Create a Google Cloud project:
-   - [Create/manage projects](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-2. Enable APIs:
-   - [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)
-   - [Google Docs API](https://console.cloud.google.com/apis/library/docs.googleapis.com)
-3. Configure OAuth consent:
-   - [OAuth consent setup](https://developers.google.com/workspace/guides/configure-oauth-consent)
-4. Create OAuth client (Web):
-   - [Create OAuth credentials](https://developers.google.com/identity/protocols/oauth2/web-server#creatingcred)
-5. Add redirect URI:
-   - `http://localhost:3000/auth/google/callback`
-
-### Scopes used
-
-- `openid`, `email`, `profile` (identify user)
-- `https://www.googleapis.com/auth/drive.file` (least-privilege file access for app-created/opened files)
-- `https://www.googleapis.com/auth/documents` (write Docs content)
-
-Scope references:
-
-- [OAuth scope registry](https://developers.google.com/identity/protocols/oauth2/scopes)
-- [Drive auth guide](https://developers.google.com/drive/api/guides/api-specific-auth)
-- [Docs API auth](https://developers.google.com/docs/api/auth)
-
-## Local development
+### Step 3: Prepare DB and run app
 
 ```bash
-npm install
-cp .env.example .env
 npx prisma migrate dev --name init
 npm run prisma:generate
 npm run dev
 ```
 
-- Web: `http://localhost:3000`
+- Web app: `http://localhost:3000`
 - API: `http://localhost:4000`
 
-## Mock mode quick start
+### Step 4: Build and load Chrome extension
 
-Use mock mode to test UI and flow without real credentials:
-
-```env
-MOCK_AUTH=true
-MOCK_GOOGLE_APIS=true
-OPENAI_API_KEY=test
-GOOGLE_CLIENT_ID=test
-GOOGLE_CLIENT_SECRET=test
-SESSION_COOKIE_SECRET=dev-secret
-TOKEN_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
-DATABASE_URL=file:./dev.db
+```bash
+npm run build:extension
 ```
 
-## Real mode checklist
+Then in Chrome:
 
-1. Set `MOCK_AUTH=false` and `MOCK_GOOGLE_APIS=false`
-2. Add real Google + OpenAI credentials in `.env`
-3. Restart `npm run dev`
-4. Open dashboard and confirm integration status shows `Mode: real connected`
+1. Open `chrome://extensions`
+2. Enable Developer mode
+3. Click **Load unpacked**
+4. Select `extension/`
 
-## API endpoints
+### Step 5: Use SynapseSync flow
 
-Auth:
+1. Sign in to Google from web app (`/auth/google`) or from extension “Open Login”
+2. Open a PubMed abstract page (`https://pubmed.ncbi.nlm.nih.gov/...`)
+3. Open SynapseSync side panel
+4. Select target doc from Recent Docs
+5. Click **Summarize & Append**
+
+---
+
+## How It Works
+
+### Web App Flow
+
+1. User authenticates via Google OAuth
+2. Backend stores encrypted token payload in Prisma
+3. Chat endpoint handles:
+   - normal doc-creation instructions
+   - extension payload mode for paper append
+4. Google Docs API updates document content through `documents.batchUpdate`
+
+### Extension Flow (PubMed -> Google Doc)
+
+1. `content.ts` scrapes current PubMed page:
+   - `h1.heading-title`
+   - `.abstract-content`
+   - authors, DOI, page URL
+2. `sidepanel.ts` loads recent docs from backend
+3. On **Summarize & Append**:
+   - requests scraped payload from content script
+   - calls `POST /api/chat` with:
+     - `paperData`
+     - `targetDocId`
+     - `neuroMode`
+4. Backend generates structured summary and appends to the selected doc via `PATCH /api/google/appendDoc`
+
+### Append Logic
+
+`PATCH /api/google/appendDoc` performs:
+
+1. Insert horizontal rule at document end
+2. Insert paper title and style as **Heading 2**
+3. Insert AI-generated summary body
+4. Insert linked PubMed URL
+
+---
+
+## API Reference
+
+### Auth
+
 - `GET /auth/google`
 - `GET /auth/google/callback`
 - `POST /auth/logout`
 
-Core:
+### Core
+
 - `GET /api/me`
 - `GET /api/csrf`
 - `POST /api/chat`
 
-Google:
+### Google
+
 - `POST /api/google/createDoc`
+- `PATCH /api/google/appendDoc`
 - `GET /api/google/recentDocs`
 - `GET /api/google/folders`
 - `GET /api/google/pickerToken`
 - `GET /api/google/status`
 
-## OpenAI tool contract
+### `POST /api/chat` payload modes
 
-Tool: `create_google_doc`
+#### 1) Normal chat mode
 
-Arguments:
-- `title` (required)
-- `folderId` (optional)
-- `content` (required)
-- `contentFormat` (`plain | markdown | html`, default `plain`)
-- `shareWith` (optional email array)
-- `shareRole` (`reader | commenter | writer`, optional)
+```json
+{
+  "message": "Create a doc titled X with this content: ...",
+  "folderId": "optional-folder-id"
+}
+```
 
-## Testing
+#### 2) Extension append mode
+
+```json
+{
+  "paperData": {
+    "title": "Paper title",
+    "abstract": "Abstract text",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/...",
+    "authors": ["Author A", "Author B"],
+    "doi": "10.xxxx/..."
+  },
+  "targetDocId": "google-doc-id",
+  "neuroMode": true
+}
+```
+
+---
+
+## Chrome Extension
+
+Files:
+
+- `extension/manifest.json`
+- `extension/sidepanel.html`
+- `extension/src/background.ts`
+- `extension/src/content.ts`
+- `extension/src/sidepanel.ts`
+- `extension/src/api.ts`
+
+Manifest highlights:
+
+- `manifest_version: 3`
+- permissions: `activeTab`, `storage`, `scripting`, `sidePanel`, `tabs`
+- host permissions:
+  - `https://pubmed.ncbi.nlm.nih.gov/*`
+  - `http://localhost:4000/*`
+- side panel default path: `sidepanel.html`
+
+---
+
+## Configuration
+
+### Environment variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth client secret |
+| `GOOGLE_REDIRECT_URI` | Yes | OAuth callback URI |
+| `OPENAI_API_KEY` | Yes | OpenAI Responses API |
+| `TOKEN_ENCRYPTION_KEY` | Yes | Encrypt OAuth tokens at rest |
+| `DATABASE_URL` | Yes | Prisma DB connection |
+| `SESSION_COOKIE_SECRET` | Yes | Cookie signing secret |
+| `APP_BASE_URL` | Yes | Web app base URL |
+| `CHROME_EXTENSION_ORIGINS` | Prod recommended | Allowed extension origins for CORS |
+| `MOCK_AUTH` | Optional | Mock auth mode |
+| `MOCK_GOOGLE_APIS` | Optional | Mock Google operations |
+| `NEXT_PUBLIC_GOOGLE_API_KEY` | Optional | Google Picker in web dashboard |
+
+---
+
+## Project Structure
+
+```text
+apps/
+  api/
+    src/
+      routes/
+      services/
+      middleware/
+  web/
+    app/
+    components/
+extension/
+  manifest.json
+  sidepanel.html
+  src/
+prisma/
+tests/
+scripts/
+```
+
+---
+
+## Development
 
 ```bash
-npm run test:unit
-npm run test:integration
+# Type checks
+npm run typecheck
+
+# Unit + integration tests
 npm test
+
+# E2E tests
 npm run test:e2e
+
+# Build extension bundle
+npm run build:extension
 ```
 
-CI workflow is in `.github/workflows/ci.yml` and runs tests in mock mode.
+---
 
-## Production and containers
+## Security & CORS Notes
 
-- API image: `Dockerfile.api`
-- Web image: `Dockerfile.web`
-- Compose stack: `docker-compose.yml`
+- Mutating routes require CSRF token validation
+- Access/refresh tokens are encrypted before storage
+- Avoid logging tokens
+- Extension requests use `credentials: "include"`; backend must return:
+  - `Access-Control-Allow-Origin` with exact origin
+  - `Access-Control-Allow-Credentials: true`
+- In production, explicitly set `CHROME_EXTENSION_ORIGINS`
 
-Run with compose:
+---
 
-```bash
-docker compose up --build
-```
+## Troubleshooting
 
-Postgres-ready Prisma schema is provided at `prisma/schema.postgres.prisma`.
-Use `.env.production.example` as a deployment template.
+### Extension shows no docs
 
-## Current markdown conversion limits
+- Ensure you are signed in via backend OAuth
+- Verify side panel API base URL (`http://localhost:4000`)
+- Confirm cookies/session are valid
 
-- Nested markdown structures are still simplified.
-- Tables are rendered as readable row text (not true Docs table elements).
-- Fenced code blocks are preserved as monospaced text, not syntax-highlighted.
+### Append fails
+
+- Check `targetDocId` exists and belongs to accessible scope
+- Ensure required scopes include Docs + Drive file access
+- Verify CSRF endpoint is reachable (`/api/csrf`)
+
+### CORS or auth issues from extension
+
+- Confirm extension origin is allowed (`CHROME_EXTENSION_ORIGINS`)
+- Ensure requests include `credentials: "include"`
+
+---
+
+## Disclaimer
+
+SynapseSync is a developer project scaffold and not medical advice software. Always validate literature summaries against full-text papers and primary data before academic or clinical use.
+
+---
+
+## License
+
+MIT (or your preferred license).
