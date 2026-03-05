@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/background.ts"],
+  "sourcesContent": ["const PUBMED_ORIGIN = \"https://pubmed.ncbi.nlm.nih.gov\";\n\nasync function updateSidePanelForTab(tabId: number, url?: string) {\n  if (!url) {\n    await chrome.sidePanel.setOptions({ tabId, enabled: false });\n    return;\n  }\n\n  const origin = new URL(url).origin;\n  await chrome.sidePanel.setOptions({\n    tabId,\n    path: \"sidepanel.html\",\n    enabled: origin === PUBMED_ORIGIN\n  });\n}\n\nchrome.runtime.onInstalled.addListener(() => {\n  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });\n});\n\nchrome.tabs.onUpdated.addListener((tabId, _changeInfo, tab) => {\n  void updateSidePanelForTab(tabId, tab.url);\n});\n\nchrome.tabs.onActivated.addListener(async ({ tabId }) => {\n  const tab = await chrome.tabs.get(tabId);\n  void updateSidePanelForTab(tabId, tab.url);\n});\n"],
+  "mappings": ";AAAA,IAAM,gBAAgB;AAEtB,eAAe,sBAAsB,OAAe,KAAc;AAChE,MAAI,CAAC,KAAK;AACR,UAAM,OAAO,UAAU,WAAW,EAAE,OAAO,SAAS,MAAM,CAAC;AAC3D;AAAA,EACF;AAEA,QAAM,SAAS,IAAI,IAAI,GAAG,EAAE;AAC5B,QAAM,OAAO,UAAU,WAAW;AAAA,IAChC;AAAA,IACA,MAAM;AAAA,IACN,SAAS,WAAW;AAAA,EACtB,CAAC;AACH;AAEA,OAAO,QAAQ,YAAY,YAAY,MAAM;AAC3C,OAAK,OAAO,UAAU,iBAAiB,EAAE,wBAAwB,KAAK,CAAC;AACzE,CAAC;AAED,OAAO,KAAK,UAAU,YAAY,CAAC,OAAO,aAAa,QAAQ;AAC7D,OAAK,sBAAsB,OAAO,IAAI,GAAG;AAC3C,CAAC;AAED,OAAO,KAAK,YAAY,YAAY,OAAO,EAAE,MAAM,MAAM;AACvD,QAAM,MAAM,MAAM,OAAO,KAAK,IAAI,KAAK;AACvC,OAAK,sBAAsB,OAAO,IAAI,GAAG;AAC3C,CAAC;",
+  "names": []
+}
