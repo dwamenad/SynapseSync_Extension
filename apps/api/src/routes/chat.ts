@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../config/env";
 import { requireCsrf } from "../middleware/csrf";
+import { parseCreateDocIntent } from "../services/chatIntent";
 import { createGoogleDocForUser } from "../services/googleDocService";
 
 const router = Router();
@@ -52,15 +53,14 @@ router.post("/chat", requireCsrf, async (req, res) => {
   const folderHint = parsed.data.folderId
     ? `If a folder is requested and missing in the message, use folderId ${parsed.data.folderId}.`
     : "";
+  const parsedIntent = parseCreateDocIntent(parsed.data.message, parsed.data.folderId);
 
   try {
     if (env.MOCK_GOOGLE_APIS) {
-      const maybeTitle = parsed.data.message.match(/titled\\s+(.+?)\\s+with\\s+this\\s+content:/i);
-      const maybeContent = parsed.data.message.match(/with\\s+this\\s+content:\\s*([\\s\\S]+)/i);
-      const args = {
-        title: maybeTitle?.[1]?.trim() || "Untitled Doc",
+      const args = parsedIntent || {
+        title: "Untitled Doc",
         folderId: parsed.data.folderId || undefined,
-        content: maybeContent?.[1]?.trim() || parsed.data.message,
+        content: parsed.data.message,
         contentFormat: "plain" as const
       };
       const createdDoc = await createGoogleDocForUser(userId, args);
@@ -100,6 +100,14 @@ router.post("/chat", requireCsrf, async (req, res) => {
     );
 
     if (!functionCall || functionCall.type !== "function_call") {
+      if (parsedIntent) {
+        const createdDoc = await createGoogleDocForUser(userId, parsedIntent);
+        return res.status(200).json({
+          message: `Created \"${createdDoc.title}\" successfully (intent fallback).`,
+          createdDoc
+        });
+      }
+
       return res.status(200).json({
         message:
           response.output_text ||
@@ -116,6 +124,14 @@ router.post("/chat", requireCsrf, async (req, res) => {
       createdDoc
     });
   } catch {
+    if (parsedIntent) {
+      const createdDoc = await createGoogleDocForUser(userId, parsedIntent);
+      return res.status(200).json({
+        message: `Created \"${createdDoc.title}\" successfully (fallback mode).`,
+        createdDoc
+      });
+    }
+
     return res.status(500).json({ error: "Chat processing failed" });
   }
 });
