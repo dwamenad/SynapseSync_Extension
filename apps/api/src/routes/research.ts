@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../config/env";
@@ -58,15 +58,28 @@ const SynthesizeBodySchema = z.object({
   mode: z.enum(["thematic", "chronological"])
 });
 
+function respondWithTiming(
+  res: Response,
+  startedAt: number,
+  status: number,
+  body: unknown
+) {
+  res.setHeader("x-operation-ms", String(Date.now() - startedAt));
+  return res.status(status).json(body);
+}
+
 router.post("/overlap-check", researchPostLimiter, requireCsrf, async (req, res) => {
+  const startedAt = Date.now();
   const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return respondWithTiming(res, startedAt, 401, { error: "Unauthorized" });
   }
 
   const parsed = OverlapBodySchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid overlap-check payload." });
+    return respondWithTiming(res, startedAt, 400, {
+      error: "Invalid overlap-check payload."
+    });
   }
 
   try {
@@ -76,27 +89,30 @@ router.post("/overlap-check", researchPostLimiter, requireCsrf, async (req, res)
       parsed.data.targetDocId,
       parsed.data.paperData
     );
-    return res.status(200).json(result);
+    return respondWithTiming(res, startedAt, 200, result);
   } catch (error) {
-    return res.status(500).json({
+    return respondWithTiming(res, startedAt, 500, {
       error: error instanceof Error ? error.message : "Overlap check failed"
     });
   }
 });
 
 router.get("/papers", async (req, res) => {
+  const startedAt = Date.now();
   const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return respondWithTiming(res, startedAt, 401, { error: "Unauthorized" });
   }
 
   const parsed = TargetDocQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Missing targetDocId query parameter." });
+    return respondWithTiming(res, startedAt, 400, {
+      error: "Missing targetDocId query parameter."
+    });
   }
 
   const papers = await listPaperEntriesForDoc(userId, parsed.data.targetDocId);
-  return res.status(200).json({
+  return respondWithTiming(res, startedAt, 200, {
     papers: papers.map((paper) => ({
       id: paper.id,
       title: paper.title,
@@ -111,51 +127,58 @@ router.get("/papers", async (req, res) => {
 });
 
 router.post("/evidence-matrix", researchPostLimiter, requireCsrf, async (req, res) => {
+  const startedAt = Date.now();
   const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return respondWithTiming(res, startedAt, 401, { error: "Unauthorized" });
   }
 
   const parsed = EvidenceMatrixBodySchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid evidence-matrix payload." });
+    return respondWithTiming(res, startedAt, 400, {
+      error: "Invalid evidence-matrix payload."
+    });
   }
 
   try {
     const result = await generateEvidenceMatrixForUser(userId, parsed.data.targetDocId);
-    return res.status(200).json(result);
+    return respondWithTiming(res, startedAt, 200, result);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to generate evidence matrix";
     const status = /append papers first|no papers/i.test(message) ? 400 : 500;
-    return res.status(status).json({ error: message });
+    return respondWithTiming(res, startedAt, status, { error: message });
   }
 });
 
 router.get("/evidence-matrix", async (req, res) => {
+  const startedAt = Date.now();
   const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return respondWithTiming(res, startedAt, 401, { error: "Unauthorized" });
   }
 
   const parsed = TargetDocQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Missing targetDocId query parameter." });
+    return respondWithTiming(res, startedAt, 400, {
+      error: "Missing targetDocId query parameter."
+    });
   }
 
   const result = await getEvidenceMatrixForUser(userId, parsed.data.targetDocId);
-  return res.status(200).json(result);
+  return respondWithTiming(res, startedAt, 200, result);
 });
 
 router.post("/synthesize", researchPostLimiter, requireCsrf, async (req, res) => {
+  const startedAt = Date.now();
   const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return respondWithTiming(res, startedAt, 401, { error: "Unauthorized" });
   }
 
   const parsed = SynthesizeBodySchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({
+    return respondWithTiming(res, startedAt, 400, {
       error:
         "Invalid synthesize payload. Provide targetDocId, paperEntryIds (5-10), and mode."
     });
@@ -170,7 +193,7 @@ router.post("/synthesize", researchPostLimiter, requireCsrf, async (req, res) =>
       mode: parsed.data.mode
     });
 
-    return res.status(200).json({
+    return respondWithTiming(res, startedAt, 200, {
       message: "Synthesis appended successfully.",
       synthesisText: result.synthesisText,
       appendedDoc: result.appendedDoc
@@ -178,7 +201,7 @@ router.post("/synthesize", researchPostLimiter, requireCsrf, async (req, res) =>
   } catch (error) {
     const message = error instanceof Error ? error.message : "Synthesis failed";
     const status = /invalid for the target document/i.test(message) ? 400 : 500;
-    return res.status(status).json({ error: message });
+    return respondWithTiming(res, startedAt, status, { error: message });
   }
 });
 
