@@ -79,7 +79,7 @@ test("connection phase flow generates matrix and synthesis", async ({ page }) =>
         },
         body: JSON.stringify({
           targetDocId,
-          neuroMode: true,
+          disciplineMode: true,
           paperData: {
             title: `E2E Paper ${i + 1}`,
             abstract:

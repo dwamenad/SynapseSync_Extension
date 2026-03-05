@@ -25,7 +25,8 @@ export type RecentDoc = {
 export type ExtensionChatPayload = {
   paperData: PaperData;
   targetDocId: string;
-  neuroMode: boolean;
+  disciplineMode?: boolean;
+  neuroMode?: boolean;
 };
 
 export type OverlapItem = {

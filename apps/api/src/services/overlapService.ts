@@ -159,7 +159,7 @@ function overlapReason(paperData: PaperData, entry: {
   }
 
   if (entry.gainVsLoss) {
-    differences.push("related gain/loss contrast");
+    differences.push("related key contrast/result");
   }
 
   if (differences.length === 0) {

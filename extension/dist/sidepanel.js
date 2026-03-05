@@ -85,7 +85,7 @@ var refreshDocsButton = requireElement("#refreshDocs");
 var openLoginButton = requireElement("#openLogin");
 var docSelect = requireElement("#docSelect");
 var summarizeAppendButton = requireElement("#summarizeAppend");
-var neuroModeToggle = requireElement("#neuroMode");
+var disciplineModeToggle = requireElement("#disciplineMode");
 var overlapInsightsEl = requireElement("#overlapInsights");
 var statusEl = requireElement("#status");
 var api = new SynapseSyncApi(DEFAULT_API_BASE);
@@ -231,11 +231,14 @@ async function onSummarizeAppend() {
         overlapInsightsEl.textContent = error instanceof Error ? `Overlap check failed: ${error.message}` : "Overlap check failed. Continuing to append.";
       }
     }
-    setStatus("Generating neuroscience summary and appending to doc...");
+    setStatus("Generating structured research summary and appending to doc...");
+    const disciplineMode = disciplineModeToggle.checked;
     const result = await api.summarizeAndAppend({
       paperData,
       targetDocId,
-      neuroMode: neuroModeToggle.checked
+      disciplineMode,
+      // Preserve support for older backend payload parsing.
+      neuroMode: disciplineMode
     });
     const lines = [result.message];
     if (result.appendedDoc?.documentUrl) {

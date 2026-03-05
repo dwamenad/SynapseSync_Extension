@@ -8,7 +8,7 @@ import {
   appendSummaryToDocForUser,
   createGoogleDocForUser
 } from "../services/googleDocService";
-import { generateNeuroSummary } from "../services/neuroSummary";
+import { generateResearchSummary } from "../services/neuroSummary";
 import { savePaperEntryForAppend } from "../services/paperEntryService";
 
 const router = Router();
@@ -38,7 +38,9 @@ const PaperDataSchema = z.object({
 const ExtensionAppendBodySchema = z.object({
   paperData: PaperDataSchema,
   targetDocId: z.string().min(1),
-  neuroMode: z.boolean().default(false)
+  // neuroMode is kept for backward compatibility with earlier extension builds.
+  neuroMode: z.boolean().optional(),
+  disciplineMode: z.boolean().optional()
 });
 
 const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
@@ -76,10 +78,12 @@ router.post("/chat", requireCsrf, async (req, res) => {
   const extensionParsed = ExtensionAppendBodySchema.safeParse(req.body);
   if (extensionParsed.success) {
     try {
-      const summary = await generateNeuroSummary(
+      const disciplineMode =
+        extensionParsed.data.disciplineMode ?? extensionParsed.data.neuroMode ?? false;
+      const summary = await generateResearchSummary(
         openai,
         extensionParsed.data.paperData,
-        extensionParsed.data.neuroMode
+        disciplineMode
       );
       const appendedDoc = await appendSummaryToDocForUser(userId, {
         documentId: extensionParsed.data.targetDocId,
@@ -113,7 +117,7 @@ router.post("/chat", requireCsrf, async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({
       error:
-        "Invalid request body. Provide either {message} or {paperData,targetDocId,neuroMode}."
+        "Invalid request body. Provide either {message} or {paperData,targetDocId,disciplineMode}."
     });
   }
 

@@ -21,8 +21,8 @@ export const EVIDENCE_MATRIX_COLUMNS = [
   "Methodology",
   "Sample Size ($n$)",
   "Modality",
-  "Brain Regions",
-  "Result: Gain vs. Loss",
+  "Key Regions / Constructs",
+  "Primary Contrast / Result",
   "Key Stats",
   "Added At"
 ] as const;

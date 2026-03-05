@@ -1,7 +1,7 @@
 # SynapseSync_Extension
 
-**Research-to-Doc pipeline for Neuroscience PhDs**  
-Scrape PubMed, arXiv, bioRxiv, or journal pages from Chrome, generate a structured neuroscience literature summary, and append it into a selected Google Doc.
+**Research-to-Doc pipeline for PhD students and researchers across fields**  
+Scrape PubMed, arXiv, bioRxiv, or journal pages from Chrome, generate a structured literature summary, and append it into a selected Google Doc.
 
 ---
 
@@ -18,7 +18,7 @@ Core capabilities:
 - Secure token encryption at rest (AES-256-GCM)
 - OpenAI Responses API integration
 - Google Docs creation and append workflows
-- Multi-source paper-to-Doc extension flow with neuroscience-specific summarization mode
+- Multi-source paper-to-Doc extension flow with discipline-focused summarization mode
 - Evidence Matrix generation in Google Sheets per source doc
 - Semantic overlap/gap insight before append
 - Synthesis draft generation from selected saved papers
@@ -125,7 +125,7 @@ Then in Chrome:
    - calls `POST /api/chat` with:
      - `paperData`
      - `targetDocId`
-     - `neuroMode`
+     - `disciplineMode` (or legacy `neuroMode`)
 4. Backend generates structured summary and appends to the selected doc via `PATCH /api/google/appendDoc`
 
 ### Append Logic
@@ -200,7 +200,7 @@ Then in Chrome:
     "doi": "10.xxxx/..."
   },
   "targetDocId": "google-doc-id",
-  "neuroMode": true
+  "disciplineMode": true
 }
 ```
 
@@ -355,7 +355,7 @@ Use this checklist when promoting Connection Phase v1 to staging/production:
 
 ## Disclaimer
 
-SynapseSync_Extension is a developer project scaffold and not medical advice software. Always validate literature summaries against full-text papers and primary data before academic or clinical use.
+SynapseSync_Extension is a developer project scaffold. Always validate literature summaries against full-text papers and primary data before thesis, publication, policy, or clinical use.
 
 ---
 

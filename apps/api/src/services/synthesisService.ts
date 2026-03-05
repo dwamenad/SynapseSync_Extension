@@ -71,7 +71,7 @@ async function generateSynthesisText(
       {
         role: "system",
         content:
-          "You are an expert neuroscience writing assistant. Produce approximately 500 words, academic tone, cohesive and citation-ready."
+          "You are an expert academic writing assistant for PhD-level literature reviews across disciplines. Produce approximately 500 words, academic tone, cohesive and citation-ready."
       },
       {
         role: "user",

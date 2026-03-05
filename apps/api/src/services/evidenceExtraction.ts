@@ -63,8 +63,8 @@ function findStats(input: string) {
   return hits.length > 0 ? hits.join("; ") : undefined;
 }
 
-function inferBrainRegions(input: string) {
-  const knownRegions = [
+function inferKeyRegionsOrConstructs(input: string) {
+  const knownSignals = [
     "vmPFC",
     "VMPFC",
     "PFC",
@@ -79,9 +79,17 @@ function inferBrainRegions(input: string) {
     "anterior cingulate cortex",
     "dlPFC",
     "OFC",
-    "orbitofrontal cortex"
+    "orbitofrontal cortex",
+    "working memory",
+    "attention",
+    "decision-making",
+    "learning",
+    "language",
+    "executive function",
+    "social cognition",
+    "motivation"
   ];
-  const regions = knownRegions.filter((region) =>
+  const regions = knownSignals.filter((region) =>
     new RegExp(`\\b${region.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(
       input
     )
@@ -158,7 +166,7 @@ function fallbackExtraction(paperData: PaperData, summary: string): EvidenceFiel
     methodology: inferMethodology(context, paperData),
     sampleSize: inferSampleSize(context),
     modality: inferModality(context),
-    brainRegions: inferBrainRegions(context),
+    brainRegions: inferKeyRegionsOrConstructs(context),
     gainVsLoss: inferGainVsLoss(context),
     keyStats: findStats(context)
   };
@@ -201,7 +209,7 @@ export async function extractEvidenceFields(
         {
           role: "system",
           content:
-            "Extract compact evidence fields for neuroscience literature comparison. Return ONLY JSON with keys: methodology, sampleSize, modality, brainRegions, gainVsLoss, keyStats. Use null when unknown."
+            "Extract compact evidence fields for cross-disciplinary literature comparison. Return ONLY JSON with keys: methodology, sampleSize, modality, brainRegions, gainVsLoss, keyStats. Use null when unknown."
         },
         {
           role: "user",

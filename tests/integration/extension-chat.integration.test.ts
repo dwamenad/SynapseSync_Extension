@@ -48,7 +48,7 @@ describe("extension chat payload", () => {
           doi: "10.1016/j.neuro.2026.01.001"
         },
         targetDocId,
-        neuroMode: true
+        disciplineMode: true
       })
       .expect(200);
 

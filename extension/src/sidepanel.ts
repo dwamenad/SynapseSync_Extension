@@ -19,7 +19,7 @@ const openLoginButton = requireElement<HTMLButtonElement>("#openLogin");
 const docSelect = requireElement<HTMLSelectElement>("#docSelect");
 const summarizeAppendButton =
   requireElement<HTMLButtonElement>("#summarizeAppend");
-const neuroModeToggle = requireElement<HTMLInputElement>("#neuroMode");
+const disciplineModeToggle = requireElement<HTMLInputElement>("#disciplineMode");
 const overlapInsightsEl = requireElement<HTMLElement>("#overlapInsights");
 const statusEl = requireElement<HTMLElement>("#status");
 
@@ -193,11 +193,14 @@ async function onSummarizeAppend() {
       }
     }
 
-    setStatus("Generating neuroscience summary and appending to doc...");
+    setStatus("Generating structured research summary and appending to doc...");
+    const disciplineMode = disciplineModeToggle.checked;
     const result = await api.summarizeAndAppend({
       paperData,
       targetDocId,
-      neuroMode: neuroModeToggle.checked
+      disciplineMode,
+      // Preserve support for older backend payload parsing.
+      neuroMode: disciplineMode
     });
 
     const lines = [result.message];

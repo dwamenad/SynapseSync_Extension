@@ -761,7 +761,7 @@ export default function DashboardClient() {
                     <div className="meta">
                       {paper.sampleSize || "sample n/a"} · {paper.modality || "modality n/a"}
                     </div>
-                    <div className="meta">{paper.gainVsLoss || "gain/loss n/a"}</div>
+                    <div className="meta">{paper.gainVsLoss || "contrast/result n/a"}</div>
                   </label>
                 ))}
               </div>

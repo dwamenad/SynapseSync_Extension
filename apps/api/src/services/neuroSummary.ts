@@ -16,7 +16,7 @@ export type PaperData = {
   sourceType?: "pubmed" | "arxiv" | "biorxiv" | "journal";
 };
 
-const NEURO_SYSTEM_PROMPT = `You are an expert Neuroscience Research Assistant specializing in Cognition and Decision-Making.
+const DISCIPLINE_SYSTEM_PROMPT = `You are an expert PhD-level research assistant supporting literature review workflows across disciplines.
 Your task is to synthesize the provided research metadata and scraped sections into a structured "Master Literature Review" entry.
 
 STRICT FORMATTING RULES:
@@ -31,25 +31,25 @@ REQUIRED STRUCTURE:
 **Link:** [Insert URL here]
 
 ### 1. Research Core
-- **Hypothesis:** What specific cognitive or neural mechanism is being tested?
-- **Paradigm/Task:** Describe the behavioral task.
+- **Question/Hypothesis:** What specific mechanism, relationship, or claim is being tested?
+- **Study Design/Task:** Describe the study design, paradigm, or task.
 
 ### 2. Methodological Parameters
-- **Sample ($n$):** Detail participant count/demographic.
-- **Modality:** Specify recording method.
-- **ROIs/Coordinates:** List specific brain regions or MNI coordinates highlighted.
+- **Sample ($n$):** Detail participant/unit count and key demographics when available.
+- **Data/Measurement Modality:** Specify instrumentation, modality, or data source.
+- **Key Variables/Regions/Constructs:** List named constructs, regions, variables, or coordinates highlighted.
 
 ### 3. Key Findings & Stats
-- Detail primary neural and behavioral results.
-- Include contrasts and effect sizes if present.
+- Detail the primary empirical results.
+- Include contrasts, test statistics, and effect sizes if present.
 
 ### 4. Synthesis for PhD Review
-- **Contribution:** How does this advance cognition/neuroscience?
+- **Contribution:** How does this advance the field/topic?
 - **Limitations:** Note caveats.
 
 ---`;
 
-const GENERAL_SYSTEM_PROMPT = `You are an academic research assistant.
+const GENERAL_SYSTEM_PROMPT = `You are an academic research assistant for PhD students and researchers across fields.
 Summarize the provided paper content as a concise literature-review entry with:
 1) Citation and link
 2) Research question
@@ -58,10 +58,10 @@ Summarize the provided paper content as a concise literature-review entry with:
 5) Contributions and limitations.
 Use available sections such as abstract, methods, discussion, conclusions, future directions, figures, and citations when present.`;
 
-export async function generateNeuroSummary(
+export async function generateResearchSummary(
   openai: OpenAI,
   paperData: PaperData,
-  neuroMode: boolean
+  disciplineMode: boolean
 ): Promise<string> {
   if (env.MOCK_GOOGLE_APIS) {
     return [
@@ -71,13 +71,13 @@ export async function generateNeuroSummary(
       paperData.sourceType ? `**Source Type:** ${paperData.sourceType}` : "",
       "",
       "### 1. Research Core",
-      "- **Hypothesis:** Mock-mode placeholder for the tested mechanism.",
-      "- **Paradigm/Task:** Scraped-section task summary placeholder.",
+      "- **Question/Hypothesis:** Mock-mode placeholder for the tested mechanism.",
+      "- **Study Design/Task:** Scraped-section task summary placeholder.",
       "",
       "### 2. Methodological Parameters",
       "- **Sample ($n$):** Not explicitly reported in mock mode.",
-      "- **Modality:** Not explicitly reported in mock mode.",
-      "- **ROIs/Coordinates:** Not explicitly reported in mock mode.",
+      "- **Data/Measurement Modality:** Not explicitly reported in mock mode.",
+      "- **Key Variables/Regions/Constructs:** Not explicitly reported in mock mode.",
       "",
       "### 3. Key Findings & Stats",
       "- Primary findings unavailable in mock mode.",
@@ -105,7 +105,7 @@ export async function generateNeuroSummary(
     sourceType: paperData.sourceType ?? null,
     authors: paperData.authors ?? [],
     doi: paperData.doi ?? null,
-    neuroMode
+    disciplineMode
   };
 
   const response = await openai.responses.create({
@@ -113,7 +113,7 @@ export async function generateNeuroSummary(
     input: [
       {
         role: "system",
-        content: neuroMode ? NEURO_SYSTEM_PROMPT : GENERAL_SYSTEM_PROMPT
+        content: disciplineMode ? DISCIPLINE_SYSTEM_PROMPT : GENERAL_SYSTEM_PROMPT
       },
       {
         role: "user",
@@ -129,3 +129,6 @@ export async function generateNeuroSummary(
 
   return text;
 }
+
+// Backward-compatible alias while older imports migrate.
+export const generateNeuroSummary = generateResearchSummary;

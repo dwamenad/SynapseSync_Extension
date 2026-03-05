@@ -92,11 +92,10 @@ async function main() {
         },
         body: JSON.stringify({
           targetDocId,
-          neuroMode: true,
+          disciplineMode: true,
           paperData: {
             title: `Smoke Paper ${i + 1}`,
-            abstract:
-              "Participants completed gain/loss decision trials under uncertainty.",
+            abstract: "Participants completed repeated decision trials under uncertainty.",
             methods:
               "Twenty participants completed a probabilistic reversal-learning task with fMRI.",
             discussion: "Findings suggest value-sensitive dynamics in prefrontal circuits.",
@@ -174,4 +173,3 @@ main().catch((error) => {
   console.error("[smoke] FAILED:", error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });
-
