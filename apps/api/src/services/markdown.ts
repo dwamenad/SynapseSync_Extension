@@ -86,6 +86,21 @@ function parseInlineMarkdown(line: string): ParsedInline {
   return { text: output, styles };
 }
 
+function isTableSeparatorRow(line: string) {
+  return /^\|\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line.trim());
+}
+
+function tableMarkdownRowToText(line: string) {
+  const cells = line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+
+  return cells.join(" | ");
+}
+
 function buildTextStyleRequest(style: InlineStyle): docs_v1.Schema$Request {
   const textStyle: docs_v1.Schema$TextStyle = {};
   const fieldSet = new Set<string>();
@@ -167,6 +182,13 @@ export function markdownToDocsRequests(markdown: string): {
     let line = rawLine;
     let headingType: HeadingStyle["namedStyleType"] | undefined;
     let listBulletPreset: ListStyle["bulletPreset"] | undefined;
+
+    if (line.trim().startsWith("|")) {
+      if (isTableSeparatorRow(line)) {
+        continue;
+      }
+      line = tableMarkdownRowToText(line);
+    }
 
     if (line.startsWith("## ")) {
       headingType = "HEADING_2";
