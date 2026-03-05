@@ -22,6 +22,18 @@ type CreateDocResult = {
   documentUrl: string;
   title: string;
 };
+export const appendDocArgsSchema = z.object({
+  documentId: z.string().min(1),
+  paperTitle: z.string().min(1),
+  paperUrl: z.string().url(),
+  summary: z.string().min(1)
+});
+export type AppendDocArgs = z.infer<typeof appendDocArgsSchema>;
+type AppendDocResult = {
+  documentId: string;
+  documentUrl: string;
+  appended: true;
+};
 
 type StoredOAuthPayload = {
   access_token?: string;
@@ -104,6 +116,110 @@ export async function createGoogleDocForUser(userId: string, rawArgs: unknown) {
     });
 
     return doc;
+  });
+}
+
+async function getDocumentInsertionIndex(
+  docs: ReturnType<typeof google.docs>,
+  documentId: string
+) {
+  const document = await docs.documents.get({
+    documentId,
+    fields: "body/content/endIndex"
+  });
+  const bodyContent = document.data.body?.content || [];
+  const lastEndIndex = bodyContent[bodyContent.length - 1]?.endIndex;
+  if (!lastEndIndex) {
+    return 1;
+  }
+  return Math.max(1, lastEndIndex - 1);
+}
+
+export async function appendSummaryToDocForUser(userId: string, rawArgs: unknown) {
+  const args = appendDocArgsSchema.parse(rawArgs);
+
+  if (env.MOCK_GOOGLE_APIS) {
+    return {
+      documentId: args.documentId,
+      documentUrl: `https://docs.google.com/document/d/${args.documentId}/edit`,
+      appended: true
+    } satisfies AppendDocResult;
+  }
+
+  return withUserGoogleClient(userId, async ({ docs }) => {
+    const insertionIndex = await getDocumentInsertionIndex(docs, args.documentId);
+    const horizontalRuleRequest = {
+      insertHorizontalRule: {
+        location: { index: insertionIndex }
+      }
+    } as unknown as docs_v1.Schema$Request;
+
+    await docs.documents.batchUpdate({
+      documentId: args.documentId,
+      requestBody: {
+        requests: [horizontalRuleRequest]
+      }
+    });
+
+    const afterRuleIndex = await getDocumentInsertionIndex(docs, args.documentId);
+    const sourcePrefix = "Source: ";
+    const linkLabel = "PubMed Link";
+    const textBlock = `${args.paperTitle}\n${args.summary}\n${sourcePrefix}${linkLabel}\n\n`;
+
+    const titleStart = afterRuleIndex;
+    const titleEnd = titleStart + args.paperTitle.length;
+    const sourceStart =
+      afterRuleIndex +
+      args.paperTitle.length +
+      1 +
+      args.summary.length +
+      1 +
+      sourcePrefix.length;
+    const sourceEnd = sourceStart + linkLabel.length;
+
+    await docs.documents.batchUpdate({
+      documentId: args.documentId,
+      requestBody: {
+        requests: [
+          {
+            insertText: {
+              location: { index: afterRuleIndex },
+              text: textBlock
+            }
+          },
+          {
+            updateParagraphStyle: {
+              range: {
+                startIndex: titleStart,
+                endIndex: titleEnd
+              },
+              paragraphStyle: {
+                namedStyleType: "HEADING_2"
+              },
+              fields: "namedStyleType"
+            }
+          },
+          {
+            updateTextStyle: {
+              range: {
+                startIndex: sourceStart,
+                endIndex: sourceEnd
+              },
+              textStyle: {
+                link: { url: args.paperUrl }
+              },
+              fields: "link"
+            }
+          }
+        ]
+      }
+    });
+
+    return {
+      documentId: args.documentId,
+      documentUrl: `https://docs.google.com/document/d/${args.documentId}/edit`,
+      appended: true
+    } satisfies AppendDocResult;
   });
 }
 
