@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireCsrf } from "../middleware/csrf";
 import {
+  appendSummaryToDocForUser,
   createGoogleDocForUser,
   getGoogleIntegrationStatusForUser,
   getGoogleDriveAccessTokenForUser,
@@ -27,6 +28,22 @@ router.post("/createDoc", requireCsrf, async (req, res) => {
   } catch (error) {
     return res.status(400).json({
       error: error instanceof Error ? error.message : "Failed to create doc"
+    });
+  }
+});
+
+router.patch("/appendDoc", requireCsrf, async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const result = await appendSummaryToDocForUser(userId, req.body);
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to append summary"
     });
   }
 });
