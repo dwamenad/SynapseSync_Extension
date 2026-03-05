@@ -4,6 +4,7 @@ import { createOAuthClient, GOOGLE_SCOPES } from "../lib/google";
 import { prisma } from "../lib/prisma";
 import {
   clearOAuthTempCookies,
+  clearSessionCookie,
   createPkceChallenge,
   createPkceVerifier,
   createSession,
@@ -142,6 +143,18 @@ router.get("/google/callback", async (req, res) => {
   } catch {
     return res.status(500).send("OAuth error.");
   }
+});
+
+router.post("/logout", async (req, res) => {
+  const sessionId = req.cookies.app_session as string | undefined;
+  if (sessionId) {
+    await prisma.session.deleteMany({
+      where: { id: sessionId }
+    });
+  }
+
+  clearSessionCookie(res);
+  return res.status(200).json({ ok: true });
 });
 
 export default router;

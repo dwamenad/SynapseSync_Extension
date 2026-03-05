@@ -97,10 +97,25 @@ export default function DashboardClient() {
     }
   }
 
+  async function onSignOut() {
+    await fetch("/auth/logout", {
+      method: "POST",
+      credentials: "include"
+    });
+    window.location.href = "/";
+  }
+
   return (
     <div className="grid two">
       <section className="card">
-        <h2>Chat</h2>
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <h2 style={{ marginBottom: 0 }}>Chat</h2>
+          {user ? (
+            <button className="button secondary" type="button" onClick={onSignOut}>
+              Sign out
+            </button>
+          ) : null}
+        </div>
         {user ? (
           <p className="meta">Signed in as {user.email}</p>
         ) : (
