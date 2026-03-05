@@ -5,6 +5,8 @@ type InlineStyle = {
   end: number;
   bold?: boolean;
   italic?: boolean;
+  code?: boolean;
+  linkUrl?: string;
 };
 
 type HeadingStyle = {
@@ -13,12 +15,28 @@ type HeadingStyle = {
   namedStyleType: "HEADING_1" | "HEADING_2";
 };
 
-function parseInlineMarkdown(line: string) {
+type ParsedInline = {
+  text: string;
+  styles: InlineStyle[];
+};
+
+function parseInlineMarkdown(line: string): ParsedInline {
   let i = 0;
   let output = "";
   const styles: InlineStyle[] = [];
 
   while (i < line.length) {
+    const linkMatch = line.slice(i).match(/^\[([^\]]+)]\((https?:\/\/[^)]+)\)/i);
+    if (linkMatch) {
+      const text = linkMatch[1];
+      const linkUrl = linkMatch[2];
+      const start = output.length;
+      output += text;
+      styles.push({ start, end: output.length, linkUrl });
+      i += linkMatch[0].length;
+      continue;
+    }
+
     if (line.startsWith("**", i)) {
       const close = line.indexOf("**", i + 2);
       if (close !== -1) {
@@ -43,11 +61,69 @@ function parseInlineMarkdown(line: string) {
       }
     }
 
+    if (line.startsWith("`", i)) {
+      const close = line.indexOf("`", i + 1);
+      if (close !== -1) {
+        const text = line.slice(i + 1, close);
+        const start = output.length;
+        output += text;
+        styles.push({ start, end: output.length, code: true });
+        i = close + 1;
+        continue;
+      }
+    }
+
     output += line[i];
     i += 1;
   }
 
   return { text: output, styles };
+}
+
+function buildTextStyleRequest(style: InlineStyle): docs_v1.Schema$Request {
+  const textStyle: docs_v1.Schema$TextStyle = {};
+  const fieldSet = new Set<string>();
+
+  if (style.bold) {
+    textStyle.bold = true;
+    fieldSet.add("bold");
+  }
+
+  if (style.italic) {
+    textStyle.italic = true;
+    fieldSet.add("italic");
+  }
+
+  if (style.code) {
+    textStyle.weightedFontFamily = { fontFamily: "Courier New" };
+    textStyle.backgroundColor = {
+      color: {
+        rgbColor: {
+          red: 0.95,
+          green: 0.95,
+          blue: 0.95
+        }
+      }
+    };
+    fieldSet.add("weightedFontFamily");
+    fieldSet.add("backgroundColor");
+  }
+
+  if (style.linkUrl) {
+    textStyle.link = { url: style.linkUrl };
+    fieldSet.add("link");
+  }
+
+  return {
+    updateTextStyle: {
+      range: {
+        startIndex: 1 + style.start,
+        endIndex: 1 + style.end
+      },
+      textStyle,
+      fields: Array.from(fieldSet).join(",")
+    }
+  };
 }
 
 export function markdownToDocsRequests(markdown: string): {
@@ -77,7 +153,9 @@ export function markdownToDocsRequests(markdown: string): {
         start: offset + style.start,
         end: offset + style.end,
         bold: style.bold,
-        italic: style.italic
+        italic: style.italic,
+        code: style.code,
+        linkUrl: style.linkUrl
       });
     }
 
@@ -112,21 +190,7 @@ export function markdownToDocsRequests(markdown: string): {
   }
 
   for (const style of inlineStyles) {
-    requests.push({
-      updateTextStyle: {
-        range: {
-          startIndex: 1 + style.start,
-          endIndex: 1 + style.end
-        },
-        textStyle: {
-          bold: style.bold,
-          italic: style.italic
-        },
-        fields: [style.bold ? "bold" : "", style.italic ? "italic" : ""]
-          .filter(Boolean)
-          .join(",")
-      }
-    });
+    requests.push(buildTextStyleRequest(style));
   }
 
   return { text, requests };
