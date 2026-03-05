@@ -4,13 +4,29 @@ import { z } from "zod";
 import { env } from "../config/env";
 import { requireCsrf } from "../middleware/csrf";
 import { parseCreateDocIntent } from "../services/chatIntent";
-import { createGoogleDocForUser } from "../services/googleDocService";
+import {
+  appendSummaryToDocForUser,
+  createGoogleDocForUser
+} from "../services/googleDocService";
+import { generateNeuroSummary } from "../services/neuroSummary";
 
 const router = Router();
 
 const ChatBodySchema = z.object({
   message: z.string().min(1),
   folderId: z.string().optional()
+});
+const PaperDataSchema = z.object({
+  title: z.string().min(1),
+  abstract: z.string().min(1),
+  url: z.string().url(),
+  authors: z.array(z.string()).optional(),
+  doi: z.string().optional()
+});
+const ExtensionAppendBodySchema = z.object({
+  paperData: PaperDataSchema,
+  targetDocId: z.string().min(1),
+  neuroMode: z.boolean().default(false)
 });
 
 const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
@@ -45,9 +61,40 @@ router.post("/chat", requireCsrf, async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
+  const extensionParsed = ExtensionAppendBodySchema.safeParse(req.body);
+  if (extensionParsed.success) {
+    try {
+      const summary = await generateNeuroSummary(
+        openai,
+        extensionParsed.data.paperData,
+        extensionParsed.data.neuroMode
+      );
+      const appendedDoc = await appendSummaryToDocForUser(userId, {
+        documentId: extensionParsed.data.targetDocId,
+        paperTitle: extensionParsed.data.paperData.title,
+        paperUrl: extensionParsed.data.paperData.url,
+        summary
+      });
+
+      return res.status(200).json({
+        message: "Summary appended successfully.",
+        appendedDoc,
+        summary
+      });
+    } catch (error) {
+      return res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "Failed to summarize and append"
+      });
+    }
+  }
+
   const parsed = ChatBodySchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid request body" });
+    return res.status(400).json({
+      error:
+        "Invalid request body. Provide either {message} or {paperData,targetDocId,neuroMode}."
+    });
   }
 
   const folderHint = parsed.data.folderId
