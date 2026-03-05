@@ -42,6 +42,9 @@ export default function DashboardClient() {
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusText, setStatusText] = useState<string>("");
+  const [bootLoading, setBootLoading] = useState(true);
+  const [recentLoading, setRecentLoading] = useState(false);
   const [csrfToken, setCsrfToken] = useState<string>("");
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [folderQuery, setFolderQuery] = useState("");
@@ -50,18 +53,23 @@ export default function DashboardClient() {
   const [pickerLoading, setPickerLoading] = useState(false);
 
   async function loadMe() {
+    setBootLoading(true);
     const res = await fetch("/api/me", { credentials: "include" });
     if (!res.ok) {
       setUser(null);
+      setBootLoading(false);
       return;
     }
     const data = await res.json();
     setUser(data.user);
+    setBootLoading(false);
   }
 
   async function loadRecentDocs() {
+    setRecentLoading(true);
     const res = await fetch("/api/google/recentDocs", { credentials: "include" });
     if (!res.ok) {
+      setRecentLoading(false);
       return;
     }
     const data = await res.json();
@@ -69,6 +77,7 @@ export default function DashboardClient() {
     if (!selectedDocId && data.docs?.length) {
       setSelectedDocId(data.docs[0].id);
     }
+    setRecentLoading(false);
   }
 
   useEffect(() => {
@@ -129,6 +138,7 @@ export default function DashboardClient() {
     const current = message.trim();
     setError(null);
     setLoading(true);
+    setStatusText("Sending request...");
     setChat((prev) => [
       ...prev,
       { role: "user", text: current, createdAt: new Date().toISOString() }
@@ -137,6 +147,7 @@ export default function DashboardClient() {
 
     try {
       const token = csrfToken || (await loadCsrf());
+      setStatusText("Assistant is preparing doc request...");
       const res = await fetch("/api/chat", {
         method: "POST",
         credentials: "include",
@@ -163,9 +174,11 @@ export default function DashboardClient() {
         ...prev,
         { role: "assistant", text: output, createdAt: new Date().toISOString() }
       ]);
+      setStatusText(data.createdDoc ? "Document created successfully." : "Response received.");
       await loadRecentDocs();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error");
+      setStatusText("");
     } finally {
       setLoading(false);
     }
@@ -317,6 +330,8 @@ export default function DashboardClient() {
             Not signed in. <a href="/auth/google">Sign in with Google</a>.
           </p>
         )}
+        {bootLoading ? <p className="meta">Loading account...</p> : null}
+        {statusText ? <p className="meta">{statusText}</p> : null}
 
         <div className="chat-log" style={{ marginBottom: "1rem" }}>
           {chat.map((item, idx) => (
@@ -393,7 +408,10 @@ export default function DashboardClient() {
       <aside className="card">
         <h3>Recent Docs</h3>
         <ul className="doc-list">
-          {recentDocs.length === 0 ? <li className="meta">No docs yet.</li> : null}
+          {recentLoading ? <li className="meta">Loading docs...</li> : null}
+          {!recentLoading && recentDocs.length === 0 ? (
+            <li className="meta">No docs yet.</li>
+          ) : null}
           {recentDocs.map((doc) => (
             <li
               key={doc.id}
