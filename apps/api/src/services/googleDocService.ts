@@ -107,6 +107,47 @@ export async function createGoogleDocForUser(userId: string, rawArgs: unknown) {
   });
 }
 
+export async function listDriveFoldersForUser(
+  userId: string,
+  options?: { query?: string; pageSize?: number }
+) {
+  if (env.MOCK_GOOGLE_APIS) {
+    return [
+      { id: "mock-folder-alpha", name: "Mock Folder Alpha" },
+      { id: "mock-folder-notes", name: "Mock Notes" },
+      { id: "mock-folder-projects", name: "Mock Projects" }
+    ].filter((folder) =>
+      options?.query
+        ? folder.name.toLowerCase().includes(options.query.toLowerCase())
+        : true
+    );
+  }
+
+  return withUserGoogleClient(userId, async ({ drive }) => {
+    const q = [
+      "mimeType = 'application/vnd.google-apps.folder'",
+      "trashed = false",
+      options?.query ? `name contains '${options.query.replace(/'/g, "\\\\'")}'` : null
+    ]
+      .filter(Boolean)
+      .join(" and ");
+
+    const response = await drive.files.list({
+      q,
+      pageSize: options?.pageSize ?? 20,
+      fields: "files(id,name)",
+      orderBy: "name_natural"
+    });
+
+    return (response.data.files || [])
+      .filter((file) => file.id && file.name)
+      .map((file) => ({
+        id: file.id as string,
+        name: file.name as string
+      }));
+  });
+}
+
 export async function createGoogleDocWithClients(
   drive: ReturnType<typeof google.drive>,
   docs: ReturnType<typeof google.docs>,

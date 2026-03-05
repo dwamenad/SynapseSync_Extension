@@ -1,9 +1,17 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireCsrf } from "../middleware/csrf";
-import { createGoogleDocForUser } from "../services/googleDocService";
+import {
+  createGoogleDocForUser,
+  listDriveFoldersForUser
+} from "../services/googleDocService";
 import { prisma } from "../lib/prisma";
 
 const router = Router();
+const FolderQuerySchema = z.object({
+  query: z.string().optional(),
+  pageSize: z.coerce.number().min(1).max(100).optional()
+});
 
 router.post("/createDoc", requireCsrf, async (req, res) => {
   try {
@@ -34,6 +42,27 @@ router.get("/recentDocs", async (req, res) => {
   });
 
   return res.status(200).json({ docs });
+});
+
+router.get("/folders", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const parsed = FolderQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid query params" });
+  }
+
+  try {
+    const folders = await listDriveFoldersForUser(userId, parsed.data);
+    return res.status(200).json({ folders });
+  } catch (error) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to list folders"
+    });
+  }
 });
 
 export default router;
