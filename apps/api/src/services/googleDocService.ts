@@ -168,6 +168,30 @@ export async function getGoogleDriveAccessTokenForUser(userId: string): Promise<
   });
 }
 
+export async function getGoogleIntegrationStatusForUser(userId: string) {
+  if (env.MOCK_GOOGLE_APIS) {
+    return {
+      mode: "mock" as const,
+      connected: true,
+      email: "mock@example.com",
+      displayName: "Mock User"
+    };
+  }
+
+  return withUserGoogleClient(userId, async ({ drive }) => {
+    const about = await drive.about.get({
+      fields: "user(displayName,emailAddress)"
+    });
+
+    return {
+      mode: "real" as const,
+      connected: true,
+      email: about.data.user?.emailAddress || null,
+      displayName: about.data.user?.displayName || null
+    };
+  });
+}
+
 export async function createGoogleDocWithClients(
   drive: ReturnType<typeof google.drive>,
   docs: ReturnType<typeof google.docs>,

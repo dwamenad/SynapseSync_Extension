@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireCsrf } from "../middleware/csrf";
 import {
   createGoogleDocForUser,
+  getGoogleIntegrationStatusForUser,
   getGoogleDriveAccessTokenForUser,
   listDriveFoldersForUser
 } from "../services/googleDocService";
@@ -79,6 +80,25 @@ router.get("/pickerToken", async (req, res) => {
     return res.status(500).json({
       error:
         error instanceof Error ? error.message : "Failed to create picker token"
+    });
+  }
+});
+
+router.get("/status", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const status = await getGoogleIntegrationStatusForUser(userId);
+    return res.status(200).json(status);
+  } catch (error) {
+    return res.status(500).json({
+      connected: false,
+      mode: "real",
+      error:
+        error instanceof Error ? error.message : "Failed to check integration status"
     });
   }
 });

@@ -29,6 +29,14 @@ type FolderOption = {
   name: string;
 };
 
+type IntegrationStatus = {
+  mode: "mock" | "real";
+  connected: boolean;
+  email?: string | null;
+  displayName?: string | null;
+  error?: string;
+};
+
 const CHAT_STORAGE_KEY = "gdca_chat_history_v1";
 const FOLDER_STORAGE_KEY = "gdca_folder_id_v1";
 
@@ -51,6 +59,9 @@ export default function DashboardClient() {
   const [folderOptions, setFolderOptions] = useState<FolderOption[]>([]);
   const [folderLoading, setFolderLoading] = useState(false);
   const [pickerLoading, setPickerLoading] = useState(false);
+  const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus | null>(
+    null
+  );
 
   async function loadMe() {
     setBootLoading(true);
@@ -84,6 +95,7 @@ export default function DashboardClient() {
     void loadMe();
     void loadRecentDocs();
     void loadCsrf();
+    void loadIntegrationStatus();
 
     const savedChat = window.localStorage.getItem(CHAT_STORAGE_KEY);
     if (savedChat) {
@@ -109,6 +121,15 @@ export default function DashboardClient() {
       setFolderId(savedFolder);
     }
   }, []);
+
+  async function loadIntegrationStatus() {
+    const res = await fetch("/api/google/status", { credentials: "include" });
+    if (!res.ok) {
+      return;
+    }
+    const data = await res.json();
+    setIntegrationStatus(data);
+  }
 
   useEffect(() => {
     window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chat.slice(-20)));
@@ -332,6 +353,13 @@ export default function DashboardClient() {
         )}
         {bootLoading ? <p className="meta">Loading account...</p> : null}
         {statusText ? <p className="meta">{statusText}</p> : null}
+        {integrationStatus ? (
+          <p className="meta">
+            Mode: <strong>{integrationStatus.mode}</strong>{" "}
+            {integrationStatus.connected ? "connected" : "not connected"}
+            {integrationStatus.email ? ` as ${integrationStatus.email}` : ""}
+          </p>
+        ) : null}
 
         <div className="chat-log" style={{ marginBottom: "1rem" }}>
           {chat.map((item, idx) => (
