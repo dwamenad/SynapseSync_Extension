@@ -20,7 +20,7 @@
     "typecheck:extension": "tsc -p extension/tsconfig.json --noEmit",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "DATABASE_URL=file:./test.db prisma db push --skip-generate && DATABASE_URL=file:./test.db vitest run tests/integration --pool=threads --poolOptions.threads.minThreads=1 --poolOptions.threads.maxThreads=1",
+    "test:integration": "DATABASE_URL=file:./test.db prisma db push --skip-generate && DATABASE_URL=file:./test.db vitest run tests/integration --pool=threads --maxWorkers=1 --no-file-parallelism",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "smoke:connection": "node scripts/smoke-connection-phase.mjs",
