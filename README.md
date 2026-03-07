@@ -286,12 +286,27 @@ npm test
 # E2E tests
 npm run test:e2e
 
+# Dependency security checks
+npm run verify:security
+
+# Full local quality gate
+npm run verify:all
+
 # Build extension bundle
 npm run build:extension
 
 # Connection Phase smoke test
 npm run smoke:connection
 ```
+
+## Dependency Security Maintenance
+
+- Prefer `npm audit fix` before using `npm audit fix --force`.
+- After any dependency upgrade, run:
+  1. `npm run typecheck`
+  2. `npm run test`
+  3. `npm run verify:security`
+- Use `npm run verify:all` as a single pre-push quality gate.
 
 ---
 
